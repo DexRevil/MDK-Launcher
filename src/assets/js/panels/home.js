@@ -256,14 +256,14 @@ class Home {
         });
 
         launch.on('progress', (progress, size) => {
-            infoStarting.innerHTML = `Téléchargement ${((progress / size) * 100).toFixed(0)}%`
+            infoStarting.innerHTML = `Descargando Cliente... ${((progress / size) * 100).toFixed(0)}%`
             ipcRenderer.send('main-window-progress', { progress, size })
             progressBar.value = progress;
             progressBar.max = size;
         });
 
         launch.on('check', (progress, size) => {
-            infoStarting.innerHTML = `Vérification ${((progress / size) * 100).toFixed(0)}%`
+            infoStarting.innerHTML = `Verificando... ${((progress / size) * 100).toFixed(0)}%`
             ipcRenderer.send('main-window-progress', { progress, size })
             progressBar.value = progress;
             progressBar.max = size;
@@ -283,7 +283,7 @@ class Home {
         launch.on('patch', patch => {
             console.log(patch);
             ipcRenderer.send('main-window-progress-load')
-            infoStarting.innerHTML = `Patch en cours...`
+            infoStarting.innerHTML = `Patch en curso...`
         });
 
         launch.on('data', (e) => {
@@ -293,7 +293,7 @@ class Home {
             };
             new logger('Minecraft', '#36b030');
             ipcRenderer.send('main-window-progress-load')
-            infoStarting.innerHTML = `Demarrage en cours...`
+            infoStarting.innerHTML = `Minecraft se esta iniciando...`
             console.log(e);
         })
 

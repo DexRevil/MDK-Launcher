@@ -72,8 +72,8 @@ class Login {
         connectOffline.addEventListener('click', async () => {
             if (emailOffline.value.length < 3) {
                 popupLogin.openPopup({
-                    title: 'Erreur',
-                    content: 'Votre pseudo doit faire au moins 3 caractères.',
+                    title: 'Error al conectar!',
+                    content: 'Tu nombre debe tener minimo 3 caracteres',
                     options: true
                 });
                 return;
@@ -81,8 +81,8 @@ class Login {
 
             if (emailOffline.value.match(/ /g)) {
                 popupLogin.openPopup({
-                    title: 'Erreur',
-                    content: 'Votre pseudo ne doit pas contenir d\'espaces.',
+                    title: 'Error al conectar!',
+                    content: 'Tu nombre no debe contener d\'espacios.',
                     options: true
                 });
                 return;

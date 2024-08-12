@@ -1,15 +1,15 @@
 {
-    "name": "Selvania-Launcher",
-    "preductname": "Selvania Launcher",
-    "version": "2.0.7",
-    "description": "Launcher Mincraft pour le serveur Selvania",
+    "name": "MDK-Launcher",
+    "preductname": "MDK Launcher",
+    "version": "2.0.8",
+    "description": "Lanzador de MDK Client by MDK Tean",
     "main": "src/app.js",
     "author": {
-        "name": "luuxis, Inc.",
-        "email": "contact@luuxis.fr",
-        "url": "https://github.com/luuxis"
+        "name": "MDK Game Team",
+        "email": "mdkgameteam@gmail.com",
+        "url": "https://github.com/DexRevil"
     },
-    "url": "http://launcher.luuxis.fr",
+    "url": "http://n3.boxmine.xyz:3051",
     "scripts": {
         "start": "cross-env-shell NODE_ENV=dev electron .",
         "dev": "cross-env-shell DEV_TOOL=open nodemon --exec npm start",

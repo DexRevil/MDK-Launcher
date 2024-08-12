@@ -4,6 +4,33 @@
 @import 'panels/home.css';
 @import 'panels/settings.css';
 
+#frameContentWin {
+    display: flex;
+    justify-content: space-between;
+    width: 100%;
+    -webkit-app-region: no-drag;
+}
+
+#frameTitleDock {
+    position: absolute;
+    top: 50%;
+    right: 865%;
+    transform: translate(-50%, -50%);
+    font-size: 15px;
+    font-weight: 600;
+    font-family: 'Poppins';
+    white-space: nowrap;
+    color: white;
+    -webkit-app-region: drag;
+}
+
+#frameTitleText {
+    font-size: 14px;
+    font-family: 'Poppins';
+    letter-spacing: 0.5px;
+    color: white;
+}
+
 body {
     margin: 0;
     padding: 0;

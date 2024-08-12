@@ -1,30 +1,28 @@
 <div class="container">
     <div class="nav-settings">
-        <p>Paramètres</p>
+        <p>AJUSTES</p>
         <div class="nav-box">
-            <div id="account" class="nav-settings-btn active-settings-BTN">COMPTES</div>
+            <div id="account" class="nav-settings-btn active-settings-BTN">CUENTAS</div>
             <div id="java" class="nav-settings-btn">JAVA</div>
-            <div id="resolution" class="nav-settings-btn">RESOLUTION</div>
-            <div id="launcher" class="nav-settings-btn">LAUNCHER</div>
-            <div id="save" class="nav-settings-btn">ACCUEIL</div>
+            <div id="save" class="nav-settings-btn">MENU</div>
         </div>
     </div>
 
     <div id="account-tab" class="container-settings active-container-settings">
-        <div class="titre-tab">Comptes joueurs</div>
+        <div class="titre-tab">Cuentas</div>
 
         <div class="accounts-list content-scroll">
             <div class="account" id="add">
                 <div class="add-profile">
                     <div class="icon-account-add"></div>
                 </div>
-                <div class="add-text-profile">Ajouter un compte</div>
+                <div class="add-text-profile">Agregar Cuenta.</div>
             </div>
         </div>
     </div>
 
     <div id="java-tab" class="container-settings content-scroll">
-        <div class="titre-tab">Paramètre de votre RAM</div>
+        <div class="titre-tab">Ajustes de RAM - AVANZADO</div>
         <div class="settings-elements-box">
             <div class="setting-text">
                 Définition de la RAM alloué à votre jeu, une quantité plus important augmenteras les performances de
@@ -49,26 +47,8 @@
                     </div>
                 </div>
                 <div class="ram-info-block">
-                    <b>Vous possédez un total de <span id="total-ram">0 Go</span> RAM.</b><br>
-                    <b>Vous possédez un total de <span id="free-ram">0 Go</span> RAM disponible.</b>
-                </div>
-            </div>
-        </div>
-
-        <div class="titre-tab">Emplacement de Java</div>
-        <div class="settings-elements-box">
-            <div class="setting-text">
-                Le launcher utilise une version embarquée de Java.<br>
-                Cette version est disponible dans le répertoire :<br><span class="java-path-txt"></span><br>
-                Toutefois, vous pouvez spécifier votre propre exécutable si votre jeu requiert une version de java plus
-                recente.
-            </div>
-            <div class="settings-elements content-evenly">
-                <input type="text" class="java-path-input-text" disabled>
-                <input type="file" class="java-path-input-file" accept="application/octet-stream" />
-                <div class="java-path-box">
-                    <div class="java-path-set java-path-btn">Changer</div>
-                    <div class="java-path-reset java-path-btn">Par defaut</div>
+                    <b>Tu tienes actualmente <span id="total-ram">0 Go</span> RAM.</b><br>
+                    <b>Tu tienes actualmente <span id="free-ram">0 Go</span> RAM disponible.</b>
                 </div>
             </div>
         </div>
