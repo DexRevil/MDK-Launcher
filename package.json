@@ -5,7 +5,7 @@
     "description": "Lanzador de MDK Client by MDK Tean",
     "main": "src/app.js",
     "author": {
-        "name": "MDK Game Team - Luuxis",
+        "name": "MDK Game Team",
         "email": "mdkgameteam@gmail.com",
         "url": "https://github.com/DexRevil"
     },
