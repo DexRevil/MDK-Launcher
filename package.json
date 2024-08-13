@@ -1,7 +1,7 @@
 {
     "name": "MDK-Launcher",
     "preductname": "MDK Launcher",
-    "version": "3.0.1",
+    "version": "2.0.3",
     "description": "Lanzador de MDK Client by MDK Tean",
     "main": "src/app.js",
     "author": {
