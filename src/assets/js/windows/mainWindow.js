@@ -25,7 +25,7 @@ function createWindow() {
     mainWindow = new BrowserWindow({
         title: pkg.preductname,
         width: 1280,
-        height: 720,
+        height: 680,
         minWidth: 980,
         minHeight: 552,
         resizable: false,

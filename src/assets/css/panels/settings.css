@@ -43,6 +43,19 @@
     transition: 0.3s;
 }
 
+.nav-settings-btn:hover {
+    background: var(--element-color);
+    font-size: 50%;
+    border: solid 4px var(--element-color);
+    padding: 5px 10px;
+    border-radius: 10px;
+    width: 70%;
+    text-align: center;
+    margin: 0.5rem 0;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
 .active-settings-BTN {
     background: var(--element-color);
 }
