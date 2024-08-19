@@ -32,7 +32,7 @@ class Splash {
         let splashes = [
             { "message": "Nutrias trabajando...", "author": "MDK Team" },
             { "message": "Launcher en BETA", "author": "TheDexV" },
-            { "message": "MDK x NC inc., mais un kernel.", "author": "MDK Team" }
+            { "message": "MDK x NC inc.", "author": "MDK Team" }
         ];
         let splash = splashes[Math.floor(Math.random() * splashes.length)];
         this.splashMessage.textContent = splash.message;
@@ -58,7 +58,7 @@ class Splash {
         });
 
         ipcRenderer.on('updateAvailable', () => {
-            this.setStatus(`Mise à jour disponible !`);
+            this.setStatus(`Actualizacion Disponible !`);
             if (os.platform() == 'win32') {
                 this.toggleProgress();
                 ipcRenderer.send('start-update');

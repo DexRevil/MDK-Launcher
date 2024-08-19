@@ -283,7 +283,7 @@ class Home {
         launch.on('patch', patch => {
             console.log(patch);
             ipcRenderer.send('main-window-progress-load')
-            infoStarting.innerHTML = `Patch en curso...`
+            infoStarting.innerHTML = `Abriendo Minecraft...`
         });
 
         launch.on('data', (e) => {
