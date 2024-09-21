@@ -32,7 +32,7 @@ class Splash {
         let splashes = [
             { "message": "Nutrias trabajando...", "author": "MDK Team" },
             { "message": "Launcher en BETA", "author": "TheDexV" },
-            { "message": "MDK x NC inc.", "author": "MDK Team" }
+            { "message": "Capibaras programando...", "author": "MDK Team" }
         ];
         let splash = splashes[Math.floor(Math.random() * splashes.length)];
         this.splashMessage.textContent = splash.message;
