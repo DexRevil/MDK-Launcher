@@ -293,7 +293,7 @@ class Home {
             };
             new logger('Minecraft', '#36b030');
             ipcRenderer.send('main-window-progress-load')
-            infoStarting.innerHTML = `Minecraft se esta iniciando...`
+            infoStarting.innerHTML = `Cargando launcher...`
             console.log(e);
         })
 
@@ -304,7 +304,7 @@ class Home {
             ipcRenderer.send('main-window-progress-reset')
             infoStartingBOX.style.display = "none"
             playInstanceBTN.style.display = "flex"
-            infoStarting.innerHTML = `Vérification`
+            infoStarting.innerHTML = `Verificando los Assets de MDK`
             new logger(pkg.name, '#7289da');
             console.log('Close');
         });
