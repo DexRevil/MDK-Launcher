@@ -1,13 +1,13 @@
 {
     "name": "MDK-Launcher",
     "preductname": "MDK Launcher",
-    "version": "2.0.8",
+    "version": "3.0.0",
     "description": "Lanzador de MDK Client by MDK Tean",
     "main": "src/app.js",
     "author": {
         "name": "MDK Game Team",
         "email": "mdkgameteam@gmail.com",
-        "url": "https://github.com/DexRevil"
+        "url": "http://n3.boxmine.xyz:3051"
     },
     "url": "http://n3.boxmine.xyz:3051",
     "scripts": {
@@ -23,7 +23,7 @@
     },
     "dependencies": {
         "electron-updater": "^6.1.8",
-        "minecraft-java-core": "^3.11.3",
+        "minecraft-java-core": "^3.10.4",
         "node-bdd": "^2.0.4",
         "node-fetch": "^2.7.0",
         "xml-js": "^1.6.11"

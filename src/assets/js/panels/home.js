@@ -230,7 +230,12 @@ class Home {
 
             ignored: [...options.ignored],
 
-            javaPath: configClient.java_config.java_path,
+            java: {
+                path: configClient.java_config.java_path,
+            },
+
+            JVM_ARGS:  options.jvm_args ? options.jvm_args : [],
+            GAME_ARGS: options.game_args ? options.game_args : [],
 
             screen: {
                 width: configClient.game_config.screen_size.width,
@@ -256,14 +261,14 @@ class Home {
         });
 
         launch.on('progress', (progress, size) => {
-            infoStarting.innerHTML = `Descargando Cliente... ${((progress / size) * 100).toFixed(0)}%`
+            infoStarting.innerHTML = `Téléchargement ${((progress / size) * 100).toFixed(0)}%`
             ipcRenderer.send('main-window-progress', { progress, size })
             progressBar.value = progress;
             progressBar.max = size;
         });
 
         launch.on('check', (progress, size) => {
-            infoStarting.innerHTML = `Verificando... ${((progress / size) * 100).toFixed(0)}%`
+            infoStarting.innerHTML = `Vérification ${((progress / size) * 100).toFixed(0)}%`
             ipcRenderer.send('main-window-progress', { progress, size })
             progressBar.value = progress;
             progressBar.max = size;
@@ -283,7 +288,7 @@ class Home {
         launch.on('patch', patch => {
             console.log(patch);
             ipcRenderer.send('main-window-progress-load')
-            infoStarting.innerHTML = `Abriendo Minecraft...`
+            infoStarting.innerHTML = `Patch en cours...`
         });
 
         launch.on('data', (e) => {
@@ -293,7 +298,7 @@ class Home {
             };
             new logger('Minecraft', '#36b030');
             ipcRenderer.send('main-window-progress-load')
-            infoStarting.innerHTML = `Cargando launcher...`
+            infoStarting.innerHTML = `Demarrage en cours...`
             console.log(e);
         })
 
@@ -304,7 +309,7 @@ class Home {
             ipcRenderer.send('main-window-progress-reset')
             infoStartingBOX.style.display = "none"
             playInstanceBTN.style.display = "flex"
-            infoStarting.innerHTML = `Verificando los Assets de MDK`
+            infoStarting.innerHTML = `Vérification`
             new logger(pkg.name, '#7289da');
             console.log('Close');
         });
