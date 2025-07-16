@@ -1,7 +1,7 @@
 {
     "name": "MDK-Launcher",
     "preductname": "MDK Launcher",
-    "version": "3.0.1",
+    "version": "3.0.2",
     "description": "Lanzador de Clientes de MDK Team",
     "main": "src/app.js",
     "author": {

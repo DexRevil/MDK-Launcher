@@ -261,14 +261,14 @@ class Home {
         });
 
         launch.on('progress', (progress, size) => {
-            infoStarting.innerHTML = `Descargando assets.. ${((progress / size) * 100).toFixed(0)}%`
+            infoStarting.innerHTML = `Téléchargement ${((progress / size) * 100).toFixed(0)}%`
             ipcRenderer.send('main-window-progress', { progress, size })
             progressBar.value = progress;
             progressBar.max = size;
         });
 
         launch.on('check', (progress, size) => {
-            infoStarting.innerHTML = `Verficando archivos... ${((progress / size) * 100).toFixed(0)}%`
+            infoStarting.innerHTML = `Vérification ${((progress / size) * 100).toFixed(0)}%`
             ipcRenderer.send('main-window-progress', { progress, size })
             progressBar.value = progress;
             progressBar.max = size;
@@ -288,7 +288,7 @@ class Home {
         launch.on('patch', patch => {
             console.log(patch);
             ipcRenderer.send('main-window-progress-load')
-            infoStarting.innerHTML = `Cargando...`
+            infoStarting.innerHTML = `Patch en cours...`
         });
 
         launch.on('data', (e) => {
@@ -298,7 +298,7 @@ class Home {
             };
             new logger('Minecraft', '#36b030');
             ipcRenderer.send('main-window-progress-load')
-            infoStarting.innerHTML = `Cargando...`
+            infoStarting.innerHTML = `Demarrage en cours...`
             console.log(e);
         })
 
@@ -309,7 +309,7 @@ class Home {
             ipcRenderer.send('main-window-progress-reset')
             infoStartingBOX.style.display = "none"
             playInstanceBTN.style.display = "flex"
-            infoStarting.innerHTML = `Capibaras trabajando...`
+            infoStarting.innerHTML = `Vérification`
             new logger(pkg.name, '#7289da');
             console.log('Close');
         });
@@ -318,7 +318,7 @@ class Home {
             let popupError = new popup()
 
             popupError.openPopup({
-                title: 'Ha ocurrido un error! Intente de nuevo',
+                title: 'Erreur',
                 content: err.error,
                 color: 'red',
                 options: true
@@ -330,7 +330,7 @@ class Home {
             ipcRenderer.send('main-window-progress-reset')
             infoStartingBOX.style.display = "none"
             playInstanceBTN.style.display = "flex"
-            infoStarting.innerHTML = `Cargando MDK Launcher`
+            infoStarting.innerHTML = `Vérification`
             new logger(pkg.name, '#7289da');
             console.log(err);
         });
