@@ -53,8 +53,8 @@ class Settings {
                 let id = e.target.id
                 if (e.target.classList.contains('account')) {
                     popupAccount.openPopup({
-                        title: 'Conectando..',
-                        content: 'Por favor espere',
+                        title: 'Cuentas',
+                        content: 'Cargando, porfavor espere...',
                         color: 'var(--color)'
                     })
 
@@ -72,8 +72,8 @@ class Settings {
 
                 if (e.target.classList.contains("delete-profile")) {
                     popupAccount.openPopup({
-                        title: 'Borrando Usuario...',
-                        content: 'Por favor espere',
+                        title: 'Cuentas',
+                        content: 'Eliminando...',
                         color: 'var(--color)'
                     })
                     await this.db.deleteData('accounts', id);

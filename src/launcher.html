@@ -6,10 +6,20 @@
     </head>
     <body>
         <div class="dragbar"></div>
-        <div class="frame">
-            <div id="minimize" class="button-frame icon-minimize"></div>
-            <div id="close" class="button-frame icon-close"></div>
-            <div id="frameTitleDock">MDK Launcher</div>
+        <div class="darwin">
+            <div class="frame">
+                <div id="close" class="button-frame darwin-icon-close"></div>
+                <div id="minimize" class="button-frame darwin-icon-minimize"></div>
+                <div id="maximize" class="button-frame darwin-icon-maximize"></div>
+
+            </div>
+        </div>
+        <div class="other">
+            <div class="frame">
+                <div id="minimize" class="button-frame icon-minimize"></div>
+                <div id="maximize" class="button-frame icon-maximize"></div>
+                <div id="close" class="button-frame icon-close"></div>
+            </div>
         </div>
 
         <div class="popup">
@@ -17,7 +27,7 @@
                 <div class="popup-title"></div>
                 <div class="popup-content"></div>
                 <div class="popup-options">
-                    <button class="popup-button">Ok</button>
+                    <button class="popup-button">OK</button>
                 </div>
             </div>
         </div>

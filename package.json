@@ -2,14 +2,14 @@
     "name": "MDK-Launcher",
     "preductname": "MDK Launcher",
     "version": "3.0.0",
-    "description": "Lanzador de MDK Client by MDK Tean",
+    "description": "Lanzador de Clientes de MDK Team",
     "main": "src/app.js",
     "author": {
-        "name": "MDK Game Team",
+        "name": "MDK Team",
         "email": "mdkgameteam@gmail.com",
-        "url": "http://n3.boxmine.xyz:3051"
+        "url": "https://mdkteam.wixsite.com/web1"
     },
-    "url": "http://n3.boxmine.xyz:3051",
+    "url": "http://n3.boxmine.xyz:3159",
     "scripts": {
         "start": "cross-env-shell NODE_ENV=dev electron .",
         "dev": "cross-env-shell DEV_TOOL=open nodemon --exec npm start",

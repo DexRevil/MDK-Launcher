@@ -70,7 +70,17 @@ class Launcher {
             ipcRenderer.send('main-window-minimize');
         });
 
-        document.querySelector('#close').addEventListener('click', () => {
+        let maximized = false;
+        let maximize = document.querySelector(`.${platform} .frame #maximize`);
+        maximize.addEventListener('click', () => {
+            if (maximized) ipcRenderer.send('main-window-maximize')
+            else ipcRenderer.send('main-window-maximize');
+            maximized = !maximized
+            maximize.classList.toggle('icon-maximize')
+            maximize.classList.toggle('icon-restore-down')
+        });
+
+        document.querySelector(`.${platform} .frame #close`).addEventListener('click', () => {
             ipcRenderer.send('main-window-close');
         })
     }
@@ -134,7 +144,7 @@ class Launcher {
                 if (account.meta.type === 'Xbox') {
                     console.log(`Account Type: ${account.meta.type} | Username: ${account.name}`);
                     popupRefresh.openPopup({
-                        title: 'Conectando... - MDK Auth',
+                        title: 'Connexion',
                         content: `Refresh account Type: ${account.meta.type} | Username: ${account.name}`,
                         color: 'var(--color)',
                         background: false
@@ -159,7 +169,7 @@ class Launcher {
                 } else if (account.meta.type == 'AZauth') {
                     console.log(`Account Type: ${account.meta.type} | Username: ${account.name}`);
                     popupRefresh.openPopup({
-                        title: 'Conectando... - MDK Auth',
+                        title: 'Connexion',
                         content: `Refresh account Type: ${account.meta.type} | Username: ${account.name}`,
                         color: 'var(--color)',
                         background: false
@@ -183,7 +193,7 @@ class Launcher {
                 } else if (account.meta.type == 'Mojang') {
                     console.log(`Account Type: ${account.meta.type} | Username: ${account.name}`);
                     popupRefresh.openPopup({
-                        title: 'Conectando... - MDK Auth',
+                        title: 'Connexion',
                         content: `Refresh account Type: ${account.meta.type} | Username: ${account.name}`,
                         color: 'var(--color)',
                         background: false
