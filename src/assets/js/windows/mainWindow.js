@@ -25,10 +25,10 @@ function createWindow() {
     mainWindow = new BrowserWindow({
         title: pkg.preductname,
         width: 1280,
-        height: 720,
+        height: 700,
         minWidth: 980,
         minHeight: 552,
-        resizable: true,
+        resizable: false,
         icon: `./src/assets/images/icon.${os.platform() === "win32" ? "ico" : "png"}`,
         frame: false,
         show: false,
