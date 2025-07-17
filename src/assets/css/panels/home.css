@@ -210,11 +210,23 @@
 
 .sidebar {
     display: flex;
+    flex-direction: column;
     justify-content: space-between;
     align-items: center;
-    width: 100%;
-    height: 90px;
-    background: var(--invisible);
+    width: 6rem;
+    height: 100%;
+    position: fixed;
+    left: 0;
+    top: 0;
+    background-color: var(--sidebar);
+    border-right: 1px solid var(--sidebar-border);
+    transition: all 0.2s;
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 0 10px 10px 0;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(5px);
+    gap: 1rem;
 }
 
 .player-options {
@@ -222,8 +234,8 @@
     justify-content: space-between;
     align-items: center;
     border-radius: 15px;
-    height: 3rem;
-    margin: 0 1.5rem;
+    height: 6rem;
+    margin: 0 15em;
 }
 
 .player-head {
@@ -343,11 +355,14 @@
 .info-starting-game {
     display: none;
     text-align: center;
+    height: 5%;
+    position: absolute;
+    line-height: 25px;
 }
 
 .progress-bar {
     appearance: none;
-    height: 10px;
+    height: 45px;
     margin: 0.5rem 0;
     cursor: wait;
 }
@@ -365,16 +380,16 @@
 
 .settings-btn {
     width: 3rem;
-    height: 3rem;
+    height: 4rem;
     font-size: 3rem;
     color: var(--color);
-    margin: 0 1.5rem;
+    margin: 0 15rem;
     transition: 0.3s;
 }
 
 .settings-btn:hover {
     width: 3rem;
-    height: 3rem;
+    height: 4rem;
     font-size: 3rem;
     color: var(--element-color);
     margin: 0 1.5rem;

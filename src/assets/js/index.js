@@ -30,7 +30,7 @@ class Splash {
 
     async startAnimation() {
         let splashes = [
-            { "message": "Nutrias trabajando...", "author": "MDK Team" },
+            { "message": "Capibaras trabajando...", "author": "MDK Team" },
             { "message": "Launcher en BETA", "author": "TheDexV" },
             { "message": "MDK x NC inc.", "author": "MDK Team" }
         ];
@@ -119,7 +119,7 @@ class Splash {
             this.startLauncher();
         }).catch(e => {
             console.error(e);
-            return this.shutdown("Aucune connexion internet détectée,<br>veuillez réessayer ultérieurement.");
+            return this.shutdown("El Launcher no esta disponible :(<br>Intente mas tarde.");
         })
     }
 
