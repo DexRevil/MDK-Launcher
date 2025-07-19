@@ -28,7 +28,7 @@ class Login {
     }
 
     async getMicrosoft() {
-        console.log('Initializing Microsoft login...');
+        console.log('Cargando Microsoft login...');
         let popupLogin = new popup();
         let loginHome = document.querySelector('.login-home');
         let microsoftBtn = document.querySelector('.connect-home');
@@ -61,7 +61,7 @@ class Login {
     }
 
     async getCrack() {
-        console.log('Initializing offline login...');
+        console.log('Cargando MDK Auth - Microsoft/Offline');
         let popupLogin = new popup();
         let loginOffline = document.querySelector('.login-offline');
         let microsoftcracked = document.querySelector(".connect-microsoftcracked");
@@ -72,7 +72,7 @@ class Login {
         microsoftcracked.addEventListener("click", () => {
             popupLogin.openPopup({
                 title: 'Microsoft',
-                content: 'Veuillez patienter...',
+                content: 'Cargando Microsoft Login...',
                 color: 'var(--color)'
             });
 
