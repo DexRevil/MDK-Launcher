@@ -287,7 +287,7 @@ class Home {
         launch.on('patch', patch => {
             console.log(patch);
             ipcRenderer.send('main-window-progress-load')
-            infoStarting.innerHTML = `Extrayendo forge..`
+            infoStarting.innerHTML = `Extrayendo cliente...`
         });
 
         launch.on('data', (e) => {
@@ -331,6 +331,10 @@ class Home {
                 ipcRenderer.send("main-window-show")
             };
             ipcRenderer.send('main-window-progress-reset')
+            infoStartingBOX.style.display = "none"
+            playInstanceBTN.style.display = "flex"
+            infoStarting.innerHTML = `Vérification`
+            new logger(pkg.name, '#7289da');
             console.log(err);
         });
     }
