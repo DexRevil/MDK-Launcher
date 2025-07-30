@@ -1,6 +1,5 @@
 /**
- * @author Luuxis
- * @license CC-BY-NC 4.0 - https://creativecommons.org/licenses/by-nc/4.0
+ * @author MDK
  */
 
 const { app, ipcMain, nativeTheme } = require('electron');
@@ -71,6 +70,52 @@ ipcMain.handle('is-dark-theme', (_, theme) => {
 })
 
 app.on('window-all-closed', () => app.quit());
+
+let startedAppTime = Date.now();
+
+const rpc = require('discord-rpc');
+let client = new rpc.Client({ transport: 'ipc' });
+
+ipcMain.on('new-status-discord', async () => {
+    client.login({ clientId: '994769816848183448' });
+    client.on('ready', () => {
+        client.request('SET_ACTIVITY', {
+            pid: process.pid,
+            activity: {
+                details: 'Esperando en el launcher...',
+                assets: {
+                    large_image: 'cube',
+                },
+                instance: false,
+                timestamps: {
+                    start: startedAppTime
+                }
+            },
+        });
+    });
+});
+
+ipcMain.on('delete-and-new-status-discord', async () => { 
+    if(client) client.destroy();
+    client = new rpc.Client({ transport: 'ipc' });
+    client.login({ clientId: '994769816848183448' });
+    client.on('ready', () => {
+        client.request('SET_ACTIVITY', {
+            pid: process.pid,
+            activity: {
+                details: 'Esperando en el launcher...',
+                assets: {
+                    large_image: 'launcher',
+                },
+                instance: false,
+                timestamps: {
+                    start: startedAppTime
+                }
+            },
+        });
+    });
+});
+
 
 autoUpdater.autoDownload = false;
 

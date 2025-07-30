@@ -1,8 +1,7 @@
 /**
- * @author Luuxis
- * @license CC-BY-NC 4.0 - https://creativecommons.org/licenses/by-nc/4.0
+ * @author ElFo2Ks
  */
-import { config, database, logger, changePanel, appdata, setStatus, pkg, popup } from '../utils.js'
+import { config, database, logger, changePanel, appdata, setStatus, pkg } from '../utils.js'
 
 const { Launch } = require('minecraft-java-core')
 const { shell, ipcRenderer } = require('electron')
@@ -15,6 +14,11 @@ class Home {
         this.news()
         this.socialLick()
         this.instancesSelect()
+        this.IniciarEstadoDiscord();
+    }
+
+    async IniciarEstadoDiscord() {
+        ipcRenderer.send('new-status-discord');
         document.querySelector('.settings-btn').addEventListener('click', e => changePanel('settings'))
     }
 
@@ -137,7 +141,7 @@ class Home {
                         await this.db.updateData('configClient', configClient)
                     }
                 }
-            } else console.log(`Cargando instancia ${instance.name}...`)
+            } else console.log(`Iniciando instancia ${instance.name}...`)
             if (instance.name == instanceSelect) setStatus(instance.status)
         }
 
@@ -230,12 +234,7 @@ class Home {
 
             ignored: [...options.ignored],
 
-            java: {
-                path: configClient.java_config.java_path,
-            },
-
-            JVM_ARGS:  options.jvm_args ? options.jvm_args : [],
-            GAME_ARGS: options.game_args ? options.game_args : [],
+            javaPath: configClient.java_config.java_path,
 
             screen: {
                 width: configClient.game_config.screen_size.width,
@@ -261,14 +260,14 @@ class Home {
         });
 
         launch.on('progress', (progress, size) => {
-            infoStarting.innerHTML = `Descargando assets... ${((progress / size) * 100).toFixed(0)}%`
+            infoStarting.innerHTML = `Descargando ${((progress / size) * 100).toFixed(0)}%`
             ipcRenderer.send('main-window-progress', { progress, size })
             progressBar.value = progress;
             progressBar.max = size;
         });
 
         launch.on('check', (progress, size) => {
-            infoStarting.innerHTML = `Verificando... ${((progress / size) * 100).toFixed(0)}%`
+            infoStarting.innerHTML = `Verificando Archivos ${((progress / size) * 100).toFixed(0)}%`
             ipcRenderer.send('main-window-progress', { progress, size })
             progressBar.value = progress;
             progressBar.max = size;
@@ -288,7 +287,7 @@ class Home {
         launch.on('patch', patch => {
             console.log(patch);
             ipcRenderer.send('main-window-progress-load')
-            infoStarting.innerHTML = `Capibaras trabajando...`
+            infoStarting.innerHTML = `Extrayendo forge..`
         });
 
         launch.on('data', (e) => {
@@ -298,9 +297,10 @@ class Home {
             };
             new logger('Minecraft', '#36b030');
             ipcRenderer.send('main-window-progress-load')
-            infoStarting.innerHTML = `Abriendo Minecraft...`
+            infoStarting.innerHTML = `Playing`
             console.log(e);
-        })
+
+        });
 
         launch.on('close', code => {
             if (configClient.launcher_config.closeLauncher == 'close-launcher') {
@@ -308,10 +308,13 @@ class Home {
             };
             ipcRenderer.send('main-window-progress-reset')
             infoStartingBOX.style.display = "none"
-            playInstanceBTN.style.display = "flex"
-            infoStarting.innerHTML = `Cargando...`
+            playInstanceBTN.style.display = "block"
+            infoStarting.innerHTML = `Volviendo al juego..`
             new logger(pkg.name, '#7289da');
             console.log('Close');
+            
+            ipcRenderer.send('delete-and-new-status-discord')
+
         });
 
         launch.on('error', err => {
@@ -328,10 +331,6 @@ class Home {
                 ipcRenderer.send("main-window-show")
             };
             ipcRenderer.send('main-window-progress-reset')
-            infoStartingBOX.style.display = "none"
-            playInstanceBTN.style.display = "flex"
-            infoStarting.innerHTML = `Vérification`
-            new logger(pkg.name, '#7289da');
             console.log(err);
         });
     }
@@ -341,7 +340,7 @@ class Home {
         let year = date.getFullYear()
         let month = date.getMonth() + 1
         let day = date.getDate()
-        let allMonth = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
+        let allMonth = ['n', 'n', 'n', 'n', 'n', 'n', 'n', 'n', 'n', 'n', 'n', 'n']
         return { year: year, month: allMonth[month - 1], day: day }
     }
 }
