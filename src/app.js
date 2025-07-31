@@ -95,6 +95,13 @@ ipcMain.on('new-status-discord', async () => {
     });
 });
 
+ipcMain.on('delete-status-discord', async () => {
+    if (client) {
+        client.destroy();
+    }
+});
+
+
 ipcMain.on('delete-and-new-status-discord', async () => { 
     if(client) client.destroy();
     client = new rpc.Client({ transport: 'ipc' });
@@ -105,7 +112,7 @@ ipcMain.on('delete-and-new-status-discord', async () => {
             activity: {
                 details: 'Esperando en el launcher...',
                 assets: {
-                    large_image: 'launcher',
+                    large_image: 'cube',
                 },
                 instance: false,
                 timestamps: {

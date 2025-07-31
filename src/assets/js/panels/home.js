@@ -260,14 +260,14 @@ class Home {
         });
 
         launch.on('progress', (progress, size) => {
-            infoStarting.innerHTML = `Descargando ${((progress / size) * 100).toFixed(0)}%`
+            infoStarting.innerHTML = `Descargando assets.. | ${((progress / size) * 100).toFixed(0)}%`
             ipcRenderer.send('main-window-progress', { progress, size })
             progressBar.value = progress;
             progressBar.max = size;
         });
 
         launch.on('check', (progress, size) => {
-            infoStarting.innerHTML = `Verificando Archivos ${((progress / size) * 100).toFixed(0)}%`
+            infoStarting.innerHTML = `Verificando Archivos.. | ${((progress / size) * 100).toFixed(0)}%`
             ipcRenderer.send('main-window-progress', { progress, size })
             progressBar.value = progress;
             progressBar.max = size;
@@ -287,17 +287,18 @@ class Home {
         launch.on('patch', patch => {
             console.log(patch);
             ipcRenderer.send('main-window-progress-load')
-            infoStarting.innerHTML = `Extrayendo cliente...`
+            infoStarting.innerHTML = `Abriendo el juego...`
         });
 
         launch.on('data', (e) => {
             progressBar.style.display = "none"
             if (configClient.launcher_config.closeLauncher == 'close-launcher') {
-                ipcRenderer.send("main-window-hide")
+                ipcRenderer.send("main-window-hide");
+                ipcRenderer.send('delete-status-discord');
             };
             new logger('Minecraft', '#36b030');
             ipcRenderer.send('main-window-progress-load')
-            infoStarting.innerHTML = `Playing`
+            infoStarting.innerHTML = `Jugando...`
             console.log(e);
 
         });
