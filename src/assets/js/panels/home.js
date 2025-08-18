@@ -156,8 +156,17 @@ class Home {
         let instanceDiv = document.createElement('div')
         instanceDiv.id = instance.name
         instanceDiv.className = `instance-main-item${instance.name === instanceSelect ? ' active-instance' : ''}`
-        instanceDiv.innerText = instance.name.charAt(0).toUpperCase()
         instanceDiv.title = instance.name // tooltip opcional
+
+        // Crear imagen
+        let img = document.createElement('img')
+        img.src = `http://n3.boxmine.xyz:3159/files/logoins/${instance.name}.png` // <-- aquí la URL que quieras
+        img.alt = instance.name
+        img.className = 'instance-icon'
+
+        // Insertar imagen dentro del div
+        instanceDiv.appendChild(img)
+
 
         instanceDiv.addEventListener('click', async () => {
             let configClient = await this.db.readData('configClient')
@@ -330,7 +339,7 @@ class Home {
                 ipcRenderer.send("main-window-hide");
                 ipcRenderer.send('delete-status-discord');
             };
-            new logger('Minecraft', '#36b030');
+            new logger('Minecraft - MDK Client', '#36b030');
             ipcRenderer.send('main-window-progress-load')
             infoStarting.innerHTML = `Jugando...`
             console.log(e);
