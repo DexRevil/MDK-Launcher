@@ -65,7 +65,7 @@ class Index {
                 generateUpdatesFilesForAllChannels: false,
                 appId: preductname,
                 productName: preductname,
-                copyright: 'Copyright © 2020-2024 Luuxis',
+                copyright: 'Copyright © 2020-2024 MDK Game Team',
                 artifactName: "${productName}-${os}-${arch}.${ext}",
                 extraMetadata: { main: 'app/app.js' },
                 files: ["app/**/*", "package.json", "LICENSE.md"],
@@ -84,10 +84,10 @@ class Index {
                     }]
                 },
                 nsis: {
-                    oneClick: true,
+                    oneClick: false,
                     allowToChangeInstallationDirectory: false,
                     createDesktopShortcut: true,
-                    runAfterFinish: true
+                    runAfterFinish: false
                 },
                 mac: {
                     icon: "./app/assets/images/icon.icns",

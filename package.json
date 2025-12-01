@@ -9,7 +9,7 @@
         "email": "mdkgameteam@gmail.com",
         "url": "https://mdkteam.wixsite.com/web1"
     },
-    "url": "http://n3.boxmine.xyz:3159",
+    "url": "http://usa1.aquagods.uk:25571",
     "scripts": {
         "start": "cross-env-shell NODE_ENV=dev electron .",
         "dev": "cross-env-shell DEV_TOOL=open nodemon --exec npm start",

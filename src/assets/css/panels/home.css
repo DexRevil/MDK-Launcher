@@ -541,41 +541,34 @@
 }
 
 .tooltip-container {
-  position: relative;
-  display: inline-block;
-  cursor: pointer;
+    position: relative;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
 }
 
-.tooltip-text {
-  visibility: hidden;
-  background-color: #3ecfff;
-  color: white;
-  font-size: 13px;
-  padding: 6px 12px;
-  border-radius: 10px;
-  position: absolute;
-  white-space: nowrap;
-  z-index: 10;
-  top: 50%;
-  left: 105%; /* Justo a la derecha del ícono */
-  transform: translateY(-50%);
-  opacity: 0;
-  transition: opacity 0.2s ease-in-out;
+.tooltip-container .tooltip-text {
+    visibility: hidden;
+    background-color: rgba(0,0,0,0.85);
+    color: #fff;
+    text-align: left;
+    padding: 6px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+    font-size: 0.85rem;
+
+    position: absolute;
+    left: 110%;   /* 🔹 justo a la derecha del icono */
+    top: 50%;
+    transform: translateY(-50%);
+
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+    z-index: 200;
+    pointer-events: none;
 }
 
 .tooltip-container:hover .tooltip-text {
-  visibility: visible;
-  opacity: 1;
-}
-
-/* Piquito tipo globo */
-.tooltip-text::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  right: 100%; /* al lado izquierdo del tooltip */
-  transform: translateY(-50%);
-  border-width: 6px;
-  border-style: solid;
-  border-color: transparent #3ecfff transparent transparent;
+    visibility: visible;
+    opacity: 1;
 }

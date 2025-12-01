@@ -160,7 +160,7 @@ class Home {
 
         // Crear imagen
         let img = document.createElement('img')
-        img.src = `http://n3.boxmine.xyz:3159/files/logoins/${instance.name}.png` // <-- aquí la URL que quieras
+        img.src = `http://usa1.aquagods.uk:25571/files/logoins/${instance.name}.png` // <-- aquí la URL que quieras
         img.alt = instance.name
         img.className = 'instance-icon'
 
