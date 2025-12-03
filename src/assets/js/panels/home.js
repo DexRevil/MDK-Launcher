@@ -9,13 +9,23 @@ const { shell, ipcRenderer } = require('electron')
 class Home {
     static id = "home";
     async init(config) {
-        this.config = config;
-        this.db = new database();
+    this.config = config;
+    this.db = new database();
+
+    // Llamadas iniciales
+    this.news()
+    this.socialLick()
+    this.instancesSelect()
+    this.IniciarEstadoDiscord();
+
+    // 🔁 Actualización automática cada 30s
+    setInterval(() => {
         this.news()
-        this.socialLick()
         this.instancesSelect()
-        this.IniciarEstadoDiscord();
-    }
+    }, 4000); // 30,000 ms = 30 segundos
+}
+
+    
 
     async IniciarEstadoDiscord() {
         ipcRenderer.send('new-status-discord');
