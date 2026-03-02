@@ -23,7 +23,7 @@ function destroyWindow() {
 function createWindow() {
     destroyWindow();
     updateWindow = new BrowserWindow({
-        title: "Mise à jour",
+        title: "MDK Launcher",
         width: 400,
         height: 500,
         resizable: false,
