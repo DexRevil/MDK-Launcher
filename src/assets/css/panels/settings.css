@@ -71,6 +71,14 @@
     transition: 0.3s;
 }
 
+/* subtle animation for account cards */
+.accounts-list .account {
+    transition: transform 0.2s ease, opacity 0.2s ease;
+}
+.accounts-list .account:hover {
+    transform: scale(1.05);
+}
+
 .active-settings-BTN {
     background: var(--element-color);
 }
@@ -85,6 +93,9 @@
     height: calc(100% - 26px);
     opacity: 0;
     pointer-events: none;
+    /* smooth entry animation */
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    transform: translateX(20px);
 
 }
 
@@ -104,6 +115,7 @@
     opacity: 1;
     z-index: 1;
     pointer-events: all;
+    transform: translateX(0);
 }
 
 .titre-tab {

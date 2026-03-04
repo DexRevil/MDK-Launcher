@@ -64,7 +64,7 @@ async function addAccount(data) {
         }
     }
     let div = document.createElement("div");
-    div.classList.add("account");
+    div.classList.add("account","card");
     div.id = data.ID;
     div.innerHTML = `
         <div class="profile-image" ${skin ? 'style="background-image: url(' + skin + ');"' : ''}></div>

@@ -318,6 +318,28 @@
     box-shadow: 0px 2px 5px rgba(from var(--box-button) r g b / 0.3);
 }
 
+/* simple pulse animation when clicking play */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.play-instance.pulse {
+    animation: pulse 0.4s ease;
+}
+
+/* neon glow effect - "neo" style animation on click */
+@keyframes neon {
+    0% { box-shadow: 0 0 10px var(--color), 0 0 20px var(--color); }
+    50% { box-shadow: 0 0 20px var(--color), 0 0 30px var(--color); }
+    100% { box-shadow: 0 0 10px var(--color), 0 0 20px var(--color); }
+}
+
+.play-instance.neon {
+    animation: neon 0.8s ease-in-out;
+}
+
 .play-btn {
     border: none;
     border-radius: 10px;
@@ -466,6 +488,7 @@
     cursor: pointer;
     border-radius: 10px;
     overflow: hidden;
+    transition: transform 0.2s ease, border 0.2s ease;
 }
 
 .instance-main-item img.instance-icon {

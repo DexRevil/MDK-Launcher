@@ -4,15 +4,21 @@
 @import 'panels/home.css';
 @import 'panels/settings.css';
 
-body {
+html, body {
     margin: 0;
     padding: 0;
     user-select: none;
     color: var(--color);
     font-family: 'Poppins';
     font-weight: bolder;
+    overflow: hidden; /* prevent window scrollbars */
+    width: 100%;
+    height: 100%;
 }
 
+body {
+    /* extra body rules kept for legacy */
+}
 img {
     -webkit-user-drag: none;
     user-select: none;
@@ -20,6 +26,22 @@ img {
 
 * {
     outline: none;
+}
+
+/* hide any remaining scrollbars globally */
+::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+}
+
+/* main container should occupy full window without overflow */
+.container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
 }
 
 input::-webkit-outer-spin-button,
@@ -186,10 +208,14 @@ input::-webkit-inner-spin-button {
     opacity: 0;
     z-index: 0;
     pointer-events: none;
+    /* animate panel visibility */
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    transform: translateY(10px);
 }
 
 .active {
     opacity: 1;
     z-index: 1;
     pointer-events: all;
+    transform: translateY(0);
 }

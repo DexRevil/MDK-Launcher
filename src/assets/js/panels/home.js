@@ -177,6 +177,18 @@ class Home {
         let options = instance.find(i => i.name == configClient.instance_selct)
 
         let playInstanceBTN = document.querySelector('.play-instance')
+        // add animations when button is pressed (pulse + neo glow)
+        if (playInstanceBTN) {
+            playInstanceBTN.classList.add('pulse');
+            playInstanceBTN.classList.add('neon');
+            setTimeout(() => {
+                playInstanceBTN.classList.remove('pulse');
+            }, 500);
+            setTimeout(() => {
+                playInstanceBTN.classList.remove('neon');
+            }, 900);
+        }
+
         let infoStartingBOX = document.querySelector('.info-starting-game')
         let infoStarting = document.querySelector(".info-starting-game-text")
         let progressBar = document.querySelector('.progress-bar')
