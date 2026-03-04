@@ -174,21 +174,7 @@ class Launcher {
                         color: 'var(--color)',
                         background: false
                     });
-
-                    // AZauth only works when the config.online value is a valid URL string
-                    let refresh_accounts;
-                    if (typeof this.config.online === 'string' && this.config.online.match(/^(http|https):\/\/[^ "]+$/)) {
-                        try {
-                            refresh_accounts = await new AZauth(this.config.online).verify(account);
-                        } catch (err) {
-                            console.error('[AZauth] error while creating client', err);
-                            refresh_accounts = { error: true, message: 'invalid auth server URL' };
-                        }
-                    } else {
-                        // launcher was switched out of AZauth mode, skip verification
-                        console.warn('[Launcher] skipping AZauth verify because online flag is not a URL');
-                        continue;
-                    }
+                    let refresh_accounts = await new AZauth(this.config.online).verify(account);
 
                     if (refresh_accounts.error) {
                         this.db.deleteData('accounts', account_ID)
