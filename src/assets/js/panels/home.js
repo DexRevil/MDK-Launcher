@@ -59,8 +59,8 @@ class Home {
 
     for (let instance of instancesList) {
         if (instance.whitelistActive) {
-            let whitelist = instance.whitelist.find(w => w == auth?.name)
-            if (whitelist !== auth?.name) continue;
+            let whitelist = instance.whitelist.find(w => w.toLowerCase() === auth?.name?.toLowerCase())
+            if (!whitelist) continue;
 
             if (instance.name == instanceSelect) {
                 let newInstanceSelect = instancesList.find(i => i.whitelistActive == false)
@@ -138,7 +138,7 @@ class Home {
             for (let instance of instancesList) {
                 if (instance.whitelistActive) {
                     instance.whitelist.map(whitelist => {
-                        if (whitelist == auth?.name) {
+                        if (whitelist.toLowerCase() === auth?.name?.toLowerCase()) {
                             instancesListPopup.innerHTML += `
                             <div class="tooltip-container">
                                 <div id="${instance.name}" class="instance-elements${instance.name === instanceSelect ? ' active-instance' : ''}">
@@ -177,18 +177,6 @@ class Home {
         let options = instance.find(i => i.name == configClient.instance_selct)
 
         let playInstanceBTN = document.querySelector('.play-instance')
-        // add animations when button is pressed (pulse + neo glow)
-        if (playInstanceBTN) {
-            playInstanceBTN.classList.add('pulse');
-            playInstanceBTN.classList.add('neon');
-            setTimeout(() => {
-                playInstanceBTN.classList.remove('pulse');
-            }, 500);
-            setTimeout(() => {
-                playInstanceBTN.classList.remove('neon');
-            }, 900);
-        }
-
         let infoStartingBOX = document.querySelector('.info-starting-game')
         let infoStarting = document.querySelector(".info-starting-game-text")
         let progressBar = document.querySelector('.progress-bar')

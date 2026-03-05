@@ -225,8 +225,8 @@ class Login {
 
         for (let instance of instancesList) {
             if (instance.whitelistActive) {
-                let whitelist = instance.whitelist.find(whitelist => whitelist == account.name)
-                if (whitelist !== account.name) {
+                let whitelist = instance.whitelist.find(whitelist => whitelist.toLowerCase() === account.name?.toLowerCase())
+                if (!whitelist) {
                     if (instance.name == instanceSelect) {
                         let newInstanceSelect = instancesList.find(i => i.whitelistActive == false)
                         configClient.instance_selct = newInstanceSelect.name
@@ -236,6 +236,7 @@ class Login {
             }
         }
 
+        configClient.account_selected = account.ID;
         await this.db.updateData('configClient', configClient);
         await addAccount(account);
         await accountSelect(account);

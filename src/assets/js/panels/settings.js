@@ -109,8 +109,8 @@ class Settings {
 
         for (let instance of instancesList) {
             if (instance.whitelistActive) {
-                let whitelist = instance.whitelist.find(whitelist => whitelist == auth.name)
-                if (whitelist !== auth.name) {
+                let whitelist = instance.whitelist.find(whitelist => whitelist.toLowerCase() === auth.name?.toLowerCase())
+                if (!whitelist) {
                     if (instance.name == instanceSelect) {
                         let newInstanceSelect = instancesList.find(i => i.whitelistActive == false)
                         configClient.instance_selct = newInstanceSelect.name
