@@ -224,13 +224,16 @@ class Login {
         configClient.account_selected = account.ID;
 
         for (let instance of instancesList) {
+            if (!instance) continue;
             if (instance.whitelistActive) {
                 let whitelist = instance.whitelist.find(whitelist => whitelist.toLowerCase() === account.name?.toLowerCase())
                 if (!whitelist) {
                     if (instance.name == instanceSelect) {
                         let newInstanceSelect = instancesList.find(i => i.whitelistActive == false)
-                        configClient.instance_selct = newInstanceSelect.name
-                        await setStatus(newInstanceSelect.status)
+                        if (newInstanceSelect) {
+                            configClient.instance_selct = newInstanceSelect.name
+                            await setStatus(newInstanceSelect.status)
+                        }
                     }
                 }
             }

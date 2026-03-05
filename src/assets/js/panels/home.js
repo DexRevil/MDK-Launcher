@@ -48,16 +48,22 @@ class Home {
 
     if (!instanceSelect) {
         let newInstanceSelect = instancesList.find(i => i.whitelistActive == false)
-        let configClient = await this.db.readData('configClient')
-        configClient.instance_selct = newInstanceSelect.name
-        instanceSelect = newInstanceSelect.name
-        await this.db.updateData('configClient', configClient)
+        if (newInstanceSelect) {
+            let configClient = await this.db.readData('configClient')
+            configClient.instance_selct = newInstanceSelect.name
+            instanceSelect = newInstanceSelect.name
+            await this.db.updateData('configClient', configClient)
+        } else {
+            // no available public instance, leave selection null
+            instanceSelect = null
+        }
     }
 
     // Sidebar instancias visibles con letras
     instancesVisibleList.innerHTML = ''
 
     for (let instance of instancesList) {
+        if (!instance) continue;
         if (instance.whitelistActive) {
             let whitelist = instance.whitelist.find(w => w.toLowerCase() === auth?.name?.toLowerCase())
             if (!whitelist) continue;
@@ -136,6 +142,7 @@ class Home {
         if (e.target.classList.contains('instance-select')) {
             instancesListPopup.innerHTML = ''
             for (let instance of instancesList) {
+                if (!instance) continue;
                 if (instance.whitelistActive) {
                     instance.whitelist.map(whitelist => {
                         if (whitelist.toLowerCase() === auth?.name?.toLowerCase()) {

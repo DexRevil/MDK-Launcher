@@ -163,15 +163,25 @@ class Settings {
 
     async javaPath() {
         let javaPathText = document.querySelector(".java-path-txt")
-        javaPathText.textContent = `${await appdata()}/${process.platform == 'darwin' ? this.config.dataDirectory : `.${this.config.dataDirectory}`}/runtime`;
+        if (javaPathText) {
+            javaPathText.textContent = `${await appdata()}/${process.platform == 'darwin' ? this.config.dataDirectory : `.${this.config.dataDirectory}`}/runtime`;
+        }
 
         let configClient = await this.db.readData('configClient')
         let javaPath = configClient?.java_config?.java_path || 'Utiliser la version de java livre avec le launcher';
         let javaPathInputTxt = document.querySelector(".java-path-input-text");
         let javaPathInputFile = document.querySelector(".java-path-input-file");
+        let javaPathSetBtn = document.querySelector(".java-path-set");
+        let javaPathResetBtn = document.querySelector(".java-path-reset");
+
+        if (!javaPathInputTxt || !javaPathInputFile || !javaPathSetBtn || !javaPathResetBtn) {
+            console.warn("Java path elements not found in DOM");
+            return;
+        }
+
         javaPathInputTxt.value = javaPath;
 
-        document.querySelector(".java-path-set").addEventListener("click", async () => {
+        javaPathSetBtn.addEventListener("click", async () => {
             javaPathInputFile.value = '';
             javaPathInputFile.click();
             await new Promise((resolve) => {
@@ -190,7 +200,7 @@ class Settings {
             } else alert("Le nom du fichier doit être java ou javaw");
         });
 
-        document.querySelector(".java-path-reset").addEventListener("click", async () => {
+        javaPathResetBtn.addEventListener("click", async () => {
             let configClient = await this.db.readData('configClient')
             javaPathInputTxt.value = 'Utiliser la version de java livre avec le launcher';
             configClient.java_config.java_path = null
