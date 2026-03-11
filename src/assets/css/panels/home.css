@@ -244,6 +244,7 @@
     border-radius: 15px;
     height: 3rem;
     margin: 1.5rem 0;
+    position: relative;
 }
 
 .player-head {
@@ -255,6 +256,30 @@
     width: 3rem;
     pointer-events: none;
     border-radius: 15px;
+}
+
+.account-status-badge {
+    position: absolute;
+    bottom: -8px;
+    right: -8px;
+    width: 1.2rem;
+    height: 1.2rem;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.8rem;
+    font-weight: bold;
+    border: 2px solid var(--background);
+    cursor: default;
+}
+
+.account-status-badge.premium::before {
+    content: '🟢';
+}
+
+.account-status-badge.no-premium::before {
+    content: '🔴';
 }
 
 .player-menu {

@@ -217,8 +217,41 @@ class Login {
     }
 
     async saveData(connectionData) {
+        // Validar si hay error
+        if (connectionData.error) {
+            let popupError = new popup();
+            popupError.openPopup({
+                title: 'Error de Autenticación',
+                content: `${connectionData.error} - ${connectionData.errorType || 'Desconocido'}`,
+                options: true,
+                color: 'red'
+            });
+            return;
+        }
+        
         let configClient = await this.db.readData('configClient');
-        let account = await this.db.createData('accounts', connectionData)
+        
+        // Si configClient no existe (primera ejecución), crear uno por defecto
+        if (!configClient) {
+            configClient = {
+                instance_selct: 'Vanilla',
+                account_selected: null,
+                launcher_config: {},
+                java_config: { java_path: '', java_memory: { min: 1, max: 2 } },
+                game_config: { screen_size: { width: 1920, height: 1080 } }
+            };
+        }
+        
+        // Los datos de Microsoft/Mojang ya vienen con name y uuid en el objeto raíz
+        let normalizedData = {
+            ...connectionData,
+            name: connectionData.name || 'Unknown',
+            uuid: connectionData.uuid || ''
+        };
+
+        console.log('Cuenta guardada:', normalizedData.name, normalizedData.uuid);
+
+        let account = await this.db.createData('accounts', normalizedData)
         let instanceSelect = configClient.instance_selct
         let instancesList = await config.getInstanceList()
         configClient.account_selected = account.ID;

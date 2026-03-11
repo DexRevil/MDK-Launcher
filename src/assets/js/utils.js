@@ -63,14 +63,38 @@ async function addAccount(data) {
             skin = false;
         }
     }
+    
+    // Detectar si es premium o no-premium
+    let isPremium = true;
+    let premiumBadge = '✓ Premium';
+    let premiumClasses = [];
+    
+    // Las cuentas Mojang offline son NO premium
+    if (data?.meta?.type === 'Mojang' && data?.meta?.online === false) {
+        isPremium = false;
+        premiumBadge = '✗ No Premium';
+        premiumClasses = ['no-premium-account'];
+    }
+    // Las cuentas Xbox siempre son premium
+    else if (data?.meta?.type === 'Xbox') {
+        isPremium = true;
+        premiumBadge = '🎮 Xbox (Premium)';
+        premiumClasses = ['premium-account', 'xbox-account'];
+    }
+    // Otros casos son premium por defecto
+    else {
+        premiumClasses = ['premium-account'];
+    }
+    
     let div = document.createElement("div");
-    div.classList.add("account","card");
+    div.classList.add("account", "card", ...premiumClasses);
     div.id = data.ID;
     div.innerHTML = `
         <div class="profile-image" ${skin ? 'style="background-image: url(' + skin + ');"' : ''}></div>
         <div class="profile-infos">
-            <div class="profile-pseudo">${data.name}</div>
-            <div class="profile-uuid">${data.uuid}</div>
+            <div class="profile-pseudo">${data.name || 'Unknown'}</div>
+            <div class="profile-uuid">${data.uuid || 'N/A'}</div>
+            <div class="premium-badge ${isPremium ? 'premium' : 'no-premium'}">${premiumBadge}</div>
         </div>
         <div class="delete-profile" id="${data.ID}">
             <div class="icon-account-delete delete-profile-icon"></div>
@@ -85,6 +109,22 @@ async function accountSelect(data) {
 
     if (activeAccount) activeAccount.classList.toggle('account-select');
     account.classList.add('account-select');
+    
+    // Actualizar el badge de estado premium/no-premium
+    let statusBadge = document.querySelector('.account-status-badge');
+    if (statusBadge) {
+        statusBadge.classList.remove('premium', 'no-premium');
+        
+        // Determinar si la cuenta es premium
+        let isPremium = !(data?.meta?.type === 'Mojang' && data?.meta?.online === false);
+        
+        if (isPremium) {
+            statusBadge.classList.add('premium');
+        } else {
+            statusBadge.classList.add('no-premium');
+        }
+    }
+    
     if (data?.profile?.skins[0]?.base64) headplayer(data.profile.skins[0].base64); 
     else if (data?.name) {
         let img = new Image();
@@ -108,6 +148,11 @@ async function setStatus(opt) {
     let nameServerElement = document.querySelector('.server-status-name')
     let statusServerElement = document.querySelector('.server-status-text')
     let playersOnline = document.querySelector('.status-player-count .player-count')
+
+    // Si los elementos no existen, salir sin error
+    if (!nameServerElement || !statusServerElement || !playersOnline) {
+        return;
+    }
 
     if (!opt) {
         statusServerElement.classList.add('red')

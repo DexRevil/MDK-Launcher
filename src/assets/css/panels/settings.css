@@ -260,6 +260,60 @@
     pointer-events: none;
 }
 
+/* Premium/No-Premium Account Styling */
+.premium-account {
+    border: solid 4px #4CAF50 !important;
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+}
+
+.premium-account:hover {
+    border: solid 4px #4CAF50 !important;
+    box-shadow: 0 0 20px rgba(76, 175, 80, 0.5);
+}
+
+.no-premium-account {
+    border: solid 4px #FF9800 !important;
+    box-shadow: 0 0 10px rgba(255, 152, 0, 0.3);
+    opacity: 0.85;
+}
+
+.no-premium-account:hover {
+    border: solid 4px #FF9800 !important;
+    box-shadow: 0 0 20px rgba(255, 152, 0, 0.5);
+}
+
+.xbox-account {
+    border: solid 4px #1DB100 !important;
+    box-shadow: 0 0 10px rgba(29, 177, 0, 0.3);
+}
+
+.xbox-account:hover {
+    border: solid 4px #1DB100 !important;
+    box-shadow: 0 0 20px rgba(29, 177, 0, 0.5);
+}
+
+.premium-badge {
+    font-size: 0.8rem;
+    padding: 4px 8px;
+    border-radius: 8px;
+    margin-top: 4px;
+    font-weight: bold;
+    text-align: center;
+    pointer-events: none;
+}
+
+.premium-badge.premium {
+    background-color: rgba(76, 175, 80, 0.3);
+    color: #4CAF50;
+    border: 1px solid #4CAF50;
+}
+
+.premium-badge.no-premium {
+    background-color: rgba(255, 152, 0, 0.3);
+    color: #FF9800;
+    border: 1px solid #FF9800;
+}
+
 /*******************************************************************************
  *                                                                             *
  * java tab                                                                    *

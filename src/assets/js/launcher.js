@@ -83,6 +83,37 @@ class Launcher {
         document.querySelector(`.${platform} .frame #close`).addEventListener('click', () => {
             ipcRenderer.send('main-window-close');
         })
+
+        // Help button handler (only for non-Darwin)
+        if (platform !== 'darwin') {
+            const helpBtn = document.querySelector(`.${platform} .frame #help`);
+            if (helpBtn) {
+                helpBtn.addEventListener('click', () => {
+                    const helpPopup = document.querySelector('.help-popup');
+                    if (helpPopup) {
+                        helpPopup.classList.toggle('show');
+                    }
+                });
+            }
+        }
+
+        // Close help popup handlers
+        const helpClose = document.querySelector('.help-close');
+        const helpPopup = document.querySelector('.help-popup');
+        
+        if (helpClose) {
+            helpClose.addEventListener('click', () => {
+                if (helpPopup) helpPopup.classList.remove('show');
+            });
+        }
+
+        if (helpPopup) {
+            helpPopup.addEventListener('click', (e) => {
+                if (e.target === helpPopup) {
+                    helpPopup.classList.remove('show');
+                }
+            });
+        }
     }
 
     async initConfigClient() {
@@ -257,7 +288,7 @@ class Launcher {
                 if (uuid) {
                     configClient.account_selected = uuid
                     await this.db.updateData('configClient', configClient)
-                    accountSelect(uuid)
+                    accountSelect(accounts[0])
                 }
             }
 

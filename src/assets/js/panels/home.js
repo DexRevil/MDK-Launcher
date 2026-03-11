@@ -1,7 +1,7 @@
 /**
  * @author ElFo2Ks
  */
-import { config, database, logger, changePanel, appdata, setStatus, pkg } from '../utils.js'
+import { config, database, logger, changePanel, appdata, setStatus, pkg, popup } from '../utils.js'
 
 const { Launch } = require('minecraft-java-core')
 const { shell, ipcRenderer } = require('electron')
@@ -13,12 +13,14 @@ class Home {
     this.db = new database();
 
     // Llamadas iniciales
-    this.instancesSelect()
+    this.setupEventListeners();
+    this.updateInstancesData();
     this.IniciarEstadoDiscord();
+    this.initTooltips();
 
     // 🔁 Actualización automática cada 30s
     setInterval(() => {
-        this.instancesSelect()
+        this.updateInstancesData();
     }, 4000); // 30,000 ms = 30 segundos
 }
 
@@ -29,7 +31,77 @@ class Home {
         document.querySelector('.settings-btn').addEventListener('click', e => changePanel('settings'))
     }
 
-    async instancesSelect() {
+    setupEventListeners() {
+        const instanceBTN = document.querySelector('.play-instance');
+        const instancePopup = document.querySelector('.instance-popup');
+        const instancesListPopup = document.querySelector('.instances-List');
+        const instanceCloseBTN = document.querySelector('.close-popup');
+
+        // Click en el botón JUGAR
+        instanceBTN.addEventListener('click', async e => {
+            let configClient = await this.db.readData('configClient');
+            let instancesList = await config.getInstanceList();
+            let auth = await this.db.readData('accounts', configClient.account_selected);
+
+            if (e.target.classList.contains('instance-select')) {
+                instancesListPopup.innerHTML = '';
+                for (let instance of instancesList) {
+                    if (!instance) continue;
+                    if (instance.whitelistActive) {
+                        instance.whitelist.map(whitelist => {
+                            if (whitelist.toLowerCase() === auth?.name?.toLowerCase()) {
+                                instancesListPopup.innerHTML += `
+                            <div class="tooltip-container">
+                                <div id="${instance.name}" class="instance-elements${instance.name === configClient.instance_selct ? ' active-instance' : ''}">
+                                ${instance.name}
+                                </div>
+                                <span class="tooltip-text">Haz clic para seleccionar esta instancia</span>
+                            </div>`
+                            }
+                        })
+                    } else {
+                        instancesListPopup.innerHTML += `
+                    <div class="tooltip-container">
+                        <div id="${instance.name}" class="instance-elements${instance.name === configClient.instance_selct ? ' active-instance' : ''}">
+                        ${instance.name}
+                        </div>
+                        <span class="tooltip-text">Haz clic para seleccionar esta instancia</span>
+                    </div>`
+                    }
+                }
+
+                instancePopup.style.display = 'flex'
+            } else {
+                this.startGame();
+            }
+        });
+
+        // Click en el popup de instancias
+        instancePopup.addEventListener('click', async e => {
+            let configClient = await this.db.readData('configClient');
+            let instancesList = await config.getInstanceList();
+
+            if (e.target.classList.contains('instance-elements')) {
+                let newInstanceSelect = e.target.id;
+                let activeInstanceSelect = document.querySelector('.active-instance');
+
+                if (activeInstanceSelect) activeInstanceSelect.classList.remove('active-instance');
+                e.target.classList.add('active-instance');
+
+                configClient.instance_selct = newInstanceSelect;
+                await this.db.updateData('configClient', configClient);
+                instancePopup.style.display = 'none';
+                let instance = await config.getInstanceList();
+                let options = instance.find(i => i.name == configClient.instance_selct);
+                await setStatus(options.status);
+            }
+        });
+
+        // Botón cerrar popup
+        instanceCloseBTN.addEventListener('click', () => instancePopup.style.display = 'none');
+    }
+
+    async updateInstancesData() {
     let configClient = await this.db.readData('configClient')
     let auth = await this.db.readData('accounts', configClient.account_selected)
     let instancesList = await config.getInstanceList()
@@ -112,75 +184,46 @@ class Home {
 
         instancesVisibleList.appendChild(instanceDiv)
     }
-
-    // Resto de comportamiento del popup (si decides dejarlo activo)
-    instancePopup.addEventListener('click', async e => {
-        let configClient = await this.db.readData('configClient')
-
-        if (e.target.classList.contains('instance-elements')) {
-            let newInstanceSelect = e.target.id
-            let activeInstanceSelect = document.querySelector('.active-instance')
-
-            if (activeInstanceSelect) activeInstanceSelect.classList.remove('active-instance');
-            e.target.classList.add('active-instance');
-
-            configClient.instance_selct = newInstanceSelect
-            await this.db.updateData('configClient', configClient)
-            instanceSelect = instancesList.filter(i => i.name == newInstanceSelect)
-            instancePopup.style.display = 'none'
-            let instance = await config.getInstanceList()
-            let options = instance.find(i => i.name == configClient.instance_selct)
-            await setStatus(options.status)
-        }
-    })
-
-    instanceBTN.addEventListener('click', async e => {
-        let configClient = await this.db.readData('configClient')
-        let instanceSelect = configClient.instance_selct
-        let auth = await this.db.readData('accounts', configClient.account_selected)
-
-        if (e.target.classList.contains('instance-select')) {
-            instancesListPopup.innerHTML = ''
-            for (let instance of instancesList) {
-                if (!instance) continue;
-                if (instance.whitelistActive) {
-                    instance.whitelist.map(whitelist => {
-                        if (whitelist.toLowerCase() === auth?.name?.toLowerCase()) {
-                            instancesListPopup.innerHTML += `
-                            <div class="tooltip-container">
-                                <div id="${instance.name}" class="instance-elements${instance.name === instanceSelect ? ' active-instance' : ''}">
-                                ${instance.name}
-                                </div>
-                                <span class="tooltip-text">Haz clic para seleccionar esta instancia</span>
-                            </div>`
-                        }
-                    })
-                } else {
-                    instancesListPopup.innerHTML += `
-                    <div class="tooltip-container">
-                        <div id="${instance.name}" class="instance-elements${instance.name === instanceSelect ? ' active-instance' : ''}">
-                        ${instance.name}
-                        </div>
-                        <span class="tooltip-text">Haz clic para seleccionar esta instancia</span>
-                    </div>`
-                }
-            }
-
-            instancePopup.style.display = 'flex'
-        }
-
-
-        if (!e.target.classList.contains('instance-select')) this.startGame()
-    })
-
-    instanceCloseBTN.addEventListener('click', () => instancePopup.style.display = 'none')
 }
 
     async startGame() {
         let launch = new Launch()
         let configClient = await this.db.readData('configClient')
+        
+        // Validar que configClient existe y tiene valores por defecto
+        if (!configClient) {
+            let popupError = new popup();
+            popupError.openPopup({
+                title: 'Error',
+                content: 'No se pudo leer la configuración del juego. Recarga la aplicación.',
+                options: true,
+                color: 'red'
+            });
+            return;
+        }
+        
+        // Asegurar que las propiedades anidadas existen
+        configClient.launcher_config = configClient.launcher_config || {};
+        configClient.java_config = configClient.java_config || {};
+        configClient.game_config = configClient.game_config || {};
+        configClient.java_config.java_memory = configClient.java_config.java_memory || { min: 1, max: 2 };
+        configClient.game_config.screen_size = configClient.game_config.screen_size || { width: 1920, height: 1080 };
+        
         let instance = await config.getInstanceList()
         let authenticator = await this.db.readData('accounts', configClient.account_selected)
+        
+        // Asegurar que el authenticator tiene todas las propiedades necesarias
+        if (authenticator) {
+            // Asegurar propiedades básicas
+            authenticator.user_properties = authenticator.user_properties || '{}';
+            authenticator.properties = authenticator.properties || [];
+            
+            // Si no tiene accessToken, generar uno con el UUID
+            if (!authenticator.access_token && !authenticator.accessToken) {
+                authenticator.access_token = authenticator.access_token || 'offline_' + authenticator.uuid;
+            }
+        }
+        
         let options = instance.find(i => i.name == configClient.instance_selct)
 
         let playInstanceBTN = document.querySelector('.play-instance')
@@ -216,6 +259,8 @@ class Home {
                 height: configClient.game_config.screen_size.height
             },
 
+            fullscreen: false,
+
             memory: {
                 min: `${configClient.java_config.java_memory.min * 1024}M`,
                 max: `${configClient.java_config.java_memory.max * 1024}M`
@@ -223,6 +268,14 @@ class Home {
         }
 
         launch.Launch(opt);
+
+        console.log('Configuración de lanzamiento:', {
+            instance: options.name,
+            version: options.loadder.minecraft_version,
+            allowOfflineMode: true,
+            accountType: authenticator?.meta?.type,
+            isPremium: !(authenticator?.meta?.type === 'Mojang' && authenticator?.meta?.online === false)
+        });
 
         playInstanceBTN.style.display = "none"
         infoStartingBOX.style.display = "block"
@@ -267,10 +320,18 @@ class Home {
 
         launch.on('data', (e) => {
             progressBar.style.display = "none"
-            if (configClient.launcher_config.closeLauncher == 'close-launcher') {
+            
+            // Asegurar que launcher_config existe con valor por defecto
+            const closeLauncher = configClient.launcher_config?.closeLauncher || 'close-launcher';
+            console.log('closeLauncher config:', closeLauncher);
+            
+            if (closeLauncher === 'close-launcher') {
+                console.log('Ocultando launcher...');
                 ipcRenderer.send("main-window-hide");
                 ipcRenderer.send('delete-status-discord');
-            };
+            } else {
+                console.log('Launcher se mantiene visible');
+            }
             new logger('Minecraft - MDK Client', '#36b030');
             ipcRenderer.send('main-window-progress-load')
             infoStarting.innerHTML = `Jugando...`
@@ -279,7 +340,10 @@ class Home {
         });
 
         launch.on('close', code => {
-            if (configClient.launcher_config.closeLauncher == 'close-launcher') {
+            console.log('Minecraft cerrado, mostrando launcher...');
+            const closeLauncher = configClient.launcher_config?.closeLauncher || 'close-launcher';
+            
+            if (closeLauncher === 'close-launcher') {
                 ipcRenderer.send("main-window-show")
             };
             ipcRenderer.send('main-window-progress-reset')
@@ -303,7 +367,8 @@ class Home {
                 options: true
             })
 
-            if (configClient.launcher_config.closeLauncher == 'close-launcher') {
+            const closeLauncher = configClient.launcher_config?.closeLauncher || 'close-launcher';
+            if (closeLauncher === 'close-launcher') {
                 ipcRenderer.send("main-window-show")
             };
             ipcRenderer.send('main-window-progress-reset')
@@ -322,6 +387,11 @@ class Home {
         let day = date.getDate()
         let allMonth = ['n', 'n', 'n', 'n', 'n', 'n', 'n', 'n', 'n', 'n', 'n', 'n']
         return { year: year, month: allMonth[month - 1], day: day }
+    }
+
+    initTooltips() {
+        // Los tooltips se inicializan automáticamente con CSS desde los atributos data-tooltip
+        // No se necesita código JavaScript adicional, los estilos CSS manejan todo
     }
 }
 export default Home;
