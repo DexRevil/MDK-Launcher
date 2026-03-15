@@ -7,11 +7,16 @@
 
 .login-tabs {
     position: absolute;
-    padding: 15px;
-    background: var(--background);
-    border-radius: 15px;
+    padding: 2.5rem;
+    background: var(--background-element);
+    border: 1px solid var(--glass-border);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border-radius: 20px;
     text-align: center;
-    min-width: 40%;
+    min-width: 450px;
+    box-shadow: var(--shadow-intense);
+    transition: var(--transition);
 }
 
 .login-home,
@@ -22,29 +27,119 @@
 }
 
 .login-text {
-    font-size: 1.3rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 2rem;
+    color: var(--color);
+    width: 100%;
+    text-align: center;
 }
 
-.connect,
-.cancel {
-    background: none;
-    color: var(--color);
-    border: solid 4px var(--element-color);
-    border-radius: 10px;
-    padding: 0.3rem 4rem;
-    font-size: inherit;
-    font-weight: bold;
+.login-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.login-header {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--glass-border);
+    padding-bottom: 10px;
+    width: 100%;
+}
+
+.login-header span {
+    margin: 0 5px;
+}
+
+.login-options {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.connect {
+    background: var(--accent-gradient);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 0.8rem 2.5rem;
+    font-size: 1.1rem;
+    font-weight: 700;
     margin: 15px 10px;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: var(--accent-glow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 200px;
+}
+
+.connect:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.6);
+    filter: brightness(1.1);
+}
+
+.cancel {
+    background: rgba(255,255,255,0.05);
+    color: var(--text-muted);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 0.8rem 2.5rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 15px 10px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.cancel:hover {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+}
+
+.input-login {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    align-items: center;
+    margin-bottom: 15px;
 }
 
 .input-login .email,
 .input-login .password,
 .A2F {
     color: var(--color);
-    background: none;
-    border: solid 2px var(--element-color);
-    border-radius: 30px;
-    width: 50%;
-    padding: 0.4rem 1rem;
-    margin-top: 10px;
+    background: rgba(0,0,0,0.2);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    width: 80%;
+    padding: 1rem 1.5rem;
+    margin-top: 15px;
+    font-size: 1.1rem;
+    font-family: inherit;
+    transition: var(--transition);
+    outline: none;
+}
+
+.input-login .email:focus,
+.input-login .password:focus,
+.A2F:focus {
+    border-color: var(--element-color);
+    box-shadow: inset 0 0 0 1px var(--element-color), var(--accent-glow);
+    background: rgba(0,0,0,0.4);
+}
+
+.input-login .email::placeholder,
+.input-login .password::placeholder,
+.A2F::placeholder {
+    color: rgba(255,255,255,0.3);
 }

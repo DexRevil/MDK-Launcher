@@ -25,7 +25,32 @@ class Config {
 
     async getInstanceList() {
         let urlInstance = `${url}/files`
-        let instances = await nodeFetch(urlInstance).then(res => res.json()).catch(err => err)
+        let instances;
+        let retries = 3;
+        let lastError;
+
+        while (retries > 0) {
+            try {
+                let res = await nodeFetch(urlInstance, { timeout: 5000 });
+                instances = await res.json();
+                break; // Éxito, salir del bucle
+            } catch (err) {
+                lastError = err;
+                retries--;
+                if (retries > 0) {
+                    console.warn(`[Config] Error al obtener lista de instancias (reintentando...):`, err.message || err);
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1s antes de reintentar
+                }
+            }
+        }
+
+        if (retries === 0) {
+            console.error('[Config] Error crítico al obtener lista de instancias tras varios intentos:', lastError.message || lastError);
+            return [];
+        }
+
+        if (!instances || typeof instances !== 'object') return [];
+
         let instancesList = []
         instances = Object.entries(instances)
 

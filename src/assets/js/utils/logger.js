@@ -15,24 +15,24 @@ class logger {
     }
 
     async Logger(name, color) {
-        console.log = value => {
-            console_log.call(console, `%c[${name}]:`, `color: ${color};`, value);
+        console.log = (...args) => {
+            console_log.call(console, `%c[${name}]:`, `color: ${color};`, ...args);
         };
 
-        console.info = value => {
-            console_info.call(console, `%c[${name}]:`, `color: ${color};`, value);
+        console.info = (...args) => {
+            console_info.call(console, `%c[${name}]:`, `color: ${color};`, ...args);
         };
 
-        console.warn = value => {
-            console_warn.call(console, `%c[${name}]:`, `color: ${color};`, value);
+        console.warn = (...args) => {
+            console_warn.call(console, `%c[${name}]:`, `color: ${color};`, ...args);
         };
 
-        console.debug = value => {
-            console_debug.call(console, `%c[${name}]:`, `color: ${color};`, value);
+        console.debug = (...args) => {
+            console_debug.call(console, `%c[${name}]:`, `color: ${color};`, ...args);
         };
 
-        console.error = value => {
-            console_error.call(console, `%c[${name}]:`, `color: ${color};`, value);
+        console.error = (...args) => {
+            console_error.call(console, `%c[${name}]:`, `color: ${color};`, ...args);
         };
     }
 }

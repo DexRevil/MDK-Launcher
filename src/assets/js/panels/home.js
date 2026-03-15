@@ -21,7 +21,7 @@ class Home {
     // 🔁 Actualización automática cada 30s
     setInterval(() => {
         this.updateInstancesData();
-    }, 4000); // 30,000 ms = 30 segundos
+    }, 30000); // 30,000 ms = 30 segundos
 }
 
     
@@ -93,7 +93,7 @@ class Home {
                 instancePopup.style.display = 'none';
                 let instance = await config.getInstanceList();
                 let options = instance.find(i => i.name == configClient.instance_selct);
-                await setStatus(options.status);
+                await setStatus(options.status, options.name);
             }
         });
 
@@ -147,12 +147,12 @@ class Home {
                     configClient.instance_selct = newInstanceSelect.name
                     instanceSelect = newInstanceSelect.name
                     await this.db.updateData('configClient', configClient)
-                    setStatus(newInstanceSelect.status)
+                    setStatus(newInstanceSelect.status, newInstanceSelect.name)
                 }
             }
         } else {
             if (instance.name == instanceSelect) {
-                setStatus(instance.status)
+                setStatus(instance.status, instance.name)
             }
         }
 
@@ -179,7 +179,7 @@ class Home {
             document.querySelectorAll('.instance-main-item').forEach(el => el.classList.remove('active-instance'))
             instanceDiv.classList.add('active-instance')
 
-            setStatus(instance.status)
+            setStatus(instance.status, instance.name)
         })
 
         instancesVisibleList.appendChild(instanceDiv)

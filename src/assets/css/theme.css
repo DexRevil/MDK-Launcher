@@ -1,26 +1,54 @@
 .global {
-    --element-color: #bc00eb;
-    --dark-element-color: #72007c;
-    --transition: all 0.5s cubic-bezier(1, 0.46, 0, 1.29);
-    --dark-color: #292929;
-    --light-color: rgb(245, 245, 245);
-    --invisible: #ffffff00;
+    /* Premium Modern Color Palette */
+    --element-color: #6366f1; /* Indigo vibrant */
+    --element-color-hover: #818cf8;
+    --dark-element-color: #4338ca;
+    --accent-color: #a855f7; /* Purple vibrant */
+    --success-color: #10b981;
+    --error-color: #ef4444;
+    --warning-color: #f59e0b;
+    
+    --transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    --fast-transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+    
+    --dark-color: #0b0c10;
+    --light-color: #f8fafc;
+    --invisible: transparent;
+
+    /* Glassmorphism & UI Design Tokens */
+    --glass-bg: rgba(20, 21, 28, 0.45);
+    --glass-border: rgba(255, 255, 255, 0.08); /* Frosted glass border */
+    --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    --shadow-intense: 0 10px 40px rgba(0, 0, 0, 0.5);
+    
+    --accent-gradient: linear-gradient(135deg, var(--element-color) 0%, var(--accent-color) 100%);
+    --accent-glow: 0 0 20px rgba(99, 102, 241, 0.5);
+    --glass-blur: blur(12px);
+    --glass-backdrop: blur(16px);
 }
 
 .dark {
-    --color: #F5F5F5;
-    --background: #292929;
-    --background-element: #424242;
-    --background-transparent: #2c2c2ccc;
-    --shadow: rgba(25, 25, 25, 0.7);
-    --svg-color: brightness(0) saturate(100%) invert(100%) sepia(55%) saturate(23%) hue-rotate(236deg) brightness(108%) contrast(92%);
+    --color: #F8FAFC;
+    --text-muted: #94a3b8;
+    --background: #0b0c10;
+    --background-element: var(--glass-bg);
+    --background-transparent: rgba(15, 16, 21, 0.6);
+    --sidebar: rgba(15, 16, 21, 0.7);
+    --sidebar-border: rgba(255, 255, 255, 0.05);
+    --shadow: rgba(0, 0, 0, 0.6);
+    --svg-color: brightness(0) saturate(100%) invert(98%) sepia(2%) saturate(497%) hue-rotate(185deg) brightness(115%) contrast(100%);
+    --box-button: #6366f1;
 }
 
 .light {
-    --color: #F5F5F5;
-    --background: #292929;
-    --background-element: #424242;
-    --background-transparent: #2c2c2ccc;
-    --shadow: rgba(25, 25, 25, 0.7);
-    --svg-color: brightness(0) saturate(100%) invert(100%) sepia(55%) saturate(23%) hue-rotate(236deg) brightness(108%) contrast(92%);
+    --color: #1e293b;
+    --text-muted: #64748b;
+    --background: #f1f5f9;
+    --background-element: rgba(255, 255, 255, 0.7);
+    --background-transparent: rgba(255, 255, 255, 0.8);
+    --sidebar: rgba(255, 255, 255, 0.85);
+    --sidebar-border: rgba(0, 0, 0, 0.08);
+    --shadow: rgba(0, 0, 0, 0.08);
+    --svg-color: brightness(0) saturate(100%) invert(13%) sepia(18%) saturate(1906%) hue-rotate(180deg) brightness(97%) contrast(92%);
+    --box-button: #6366f1;
 }

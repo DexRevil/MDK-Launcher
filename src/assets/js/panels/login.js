@@ -13,6 +13,16 @@ class Login {
         this.config = config;
         this.db = new database();
 
+        // Check state initially
+        await this.updateLoginState();
+
+        // Check state every time the user opens the login panel
+        document.addEventListener('panelChanged', async (e) => {
+            if (e.detail === 'login') {
+                await this.updateLoginState();
+            }
+        });
+
         if (typeof this.config.online == 'boolean') {
             this.config.online ? this.getMicrosoft() : this.getCrack()
         } else if (typeof this.config.online == 'string') {
@@ -21,10 +31,40 @@ class Login {
             }
         }
         
-        document.querySelector('.cancel-home').addEventListener('click', () => {
-            document.querySelector('.cancel-home').style.display = 'none'
-            changePanel('settings')
-        })
+        let cancelHome = document.querySelector('.cancel-home');
+        let cancelOffline = document.querySelector('.cancel-offline');
+        let cancelAZauth = document.querySelector('.cancel-AZauth');
+
+        const goBackToSettings = () => {
+            changePanel('settings');
+        };
+
+        if(cancelHome) cancelHome.addEventListener('click', goBackToSettings);
+        if(cancelOffline) cancelOffline.addEventListener('click', goBackToSettings);
+        if(cancelAZauth) cancelAZauth.addEventListener('click', goBackToSettings);
+    }
+
+    async updateLoginState() {
+        // Update text & cancel buttons properly based on existing accounts length
+        let accounts = await this.db.readAllData('accounts') || [];
+        let isFirstTime = accounts.length === 0;
+        let welcomeTitle = isFirstTime ? "Bienvenido a MDK" : "¿Qué cuenta desea agregar?";
+
+        // Update titles
+        let dynamicTitles = document.querySelectorAll('.dynamic-login-title');
+        dynamicTitles.forEach(title => {
+            title.innerHTML = welcomeTitle;
+        });
+
+        // Update cancel buttons visibility
+        let cancelButtons = document.querySelectorAll('.cancel-home, .cancel-offline, .cancel-AZauth');
+        cancelButtons.forEach(btn => {
+            if (isFirstTime) {
+                btn.style.display = 'none';
+            } else {
+                btn.style.display = 'inline';
+            }
+        });
     }
 
     async getMicrosoft() {
@@ -32,7 +72,7 @@ class Login {
         let popupLogin = new popup();
         let loginHome = document.querySelector('.login-home');
         let microsoftBtn = document.querySelector('.connect-home');
-        loginHome.style.display = 'block';
+        loginHome.style.display = 'flex';
 
         microsoftBtn.addEventListener("click", () => {
             popupLogin.openPopup({
@@ -67,7 +107,7 @@ class Login {
         let microsoftcracked = document.querySelector(".connect-microsoftcracked");
         let emailOffline = document.querySelector('.email-offline');
         let connectOffline = document.querySelector('.connect-offline');
-        loginOffline.style.display = 'block';
+        loginOffline.style.display = 'flex';
         
         microsoftcracked.addEventListener("click", () => {
             popupLogin.openPopup({
@@ -142,7 +182,7 @@ class Login {
         let AZauthConnectBTN = document.querySelector('.connect-AZauth');
         let AZauthCancelA2F = document.querySelector('.cancel-AZauth-A2F');
 
-        loginAZauth.style.display = 'block';
+        loginAZauth.style.display = 'flex';
 
         AZauthConnectBTN.addEventListener('click', async () => {
             PopupLogin.openPopup({
@@ -170,13 +210,13 @@ class Login {
                 });
                 return;
             } else if (AZauthConnect.A2F) {
-                loginAZauthA2F.style.display = 'block';
+                loginAZauthA2F.style.display = 'flex';
                 loginAZauth.style.display = 'none';
                 PopupLogin.closePopup();
 
                 AZauthCancelA2F.addEventListener('click', () => {
                     loginAZauthA2F.style.display = 'none';
-                    loginAZauth.style.display = 'block';
+                    loginAZauth.style.display = 'flex';
                 });
 
                 connectAZauthA2F.addEventListener('click', async () => {
@@ -265,7 +305,7 @@ class Login {
                         let newInstanceSelect = instancesList.find(i => i.whitelistActive == false)
                         if (newInstanceSelect) {
                             configClient.instance_selct = newInstanceSelect.name
-                            await setStatus(newInstanceSelect.status)
+                            await setStatus(newInstanceSelect.status, newInstanceSelect.name)
                         }
                     }
                 }

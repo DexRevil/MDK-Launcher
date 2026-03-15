@@ -50,8 +50,35 @@ class Settings {
         document.querySelector('.accounts-list').addEventListener('click', async e => {
             let popupAccount = new popup()
             try {
-                let id = e.target.id
-                if (e.target.classList.contains('account')) {
+                let deleteBtn = e.target.closest('.delete-profile');
+                let accountBtn = e.target.closest('.account');
+
+                if (deleteBtn) {
+                    let id = deleteBtn.id;
+                    popupAccount.openPopup({
+                        title: 'Cuentas',
+                        content: 'Eliminando...',
+                        color: 'var(--color)'
+                    })
+                    await this.db.deleteData('accounts', id);
+                    let deleteProfile = document.getElementById(`${id}`);
+                    let accountListElement = document.querySelector('.accounts-list');
+                    if (deleteProfile) accountListElement.removeChild(deleteProfile);
+
+                    if (accountListElement.children.length == 1) return changePanel('login');
+
+                    let configClient = await this.db.readData('configClient');
+
+                    if (configClient.account_selected == id) {
+                        let allAccounts = await this.db.readAllData('accounts');
+                        configClient.account_selected = allAccounts[0].ID
+                        accountSelect(allAccounts[0]);
+                        let newInstanceSelect = await this.setInstance(allAccounts[0]);
+                        configClient.instance_selct = newInstanceSelect.instance_selct
+                        return await this.db.updateData('configClient', configClient);
+                    }
+                } else if (accountBtn) {
+                    let id = accountBtn.id;
                     popupAccount.openPopup({
                         title: 'Cuentas',
                         content: 'Cargando, porfavor espere...',
@@ -68,31 +95,6 @@ class Settings {
                     await accountSelect(account);
                     configClient.account_selected = account.ID;
                     return await this.db.updateData('configClient', configClient);
-                }
-
-                if (e.target.classList.contains("delete-profile")) {
-                    popupAccount.openPopup({
-                        title: 'Cuentas',
-                        content: 'Eliminando...',
-                        color: 'var(--color)'
-                    })
-                    await this.db.deleteData('accounts', id);
-                    let deleteProfile = document.getElementById(`${id}`);
-                    let accountListElement = document.querySelector('.accounts-list');
-                    accountListElement.removeChild(deleteProfile);
-
-                    if (accountListElement.children.length == 1) return changePanel('login');
-
-                    let configClient = await this.db.readData('configClient');
-
-                    if (configClient.account_selected == id) {
-                        let allAccounts = await this.db.readAllData('accounts');
-                        configClient.account_selected = allAccounts[0].ID
-                        accountSelect(allAccounts[0]);
-                        let newInstanceSelect = await this.setInstance(allAccounts[0]);
-                        configClient.instance_selct = newInstanceSelect.instance_selct
-                        return await this.db.updateData('configClient', configClient);
-                    }
                 }
             } catch (err) {
                 console.error(err)
@@ -114,7 +116,7 @@ class Settings {
                     if (instance.name == instanceSelect) {
                         let newInstanceSelect = instancesList.find(i => i.whitelistActive == false)
                         configClient.instance_selct = newInstanceSelect.name
-                        await setStatus(newInstanceSelect.status)
+                        await setStatus(newInstanceSelect.status, newInstanceSelect.name)
                     }
                 }
             }

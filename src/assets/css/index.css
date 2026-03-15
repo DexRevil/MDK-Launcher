@@ -3,8 +3,10 @@
 
 body {
     background-color: var(--background);
-    font-family: "Poppins";
+    background: radial-gradient(circle at center, rgba(99, 102, 241, 0.15) 0%, var(--background) 70%);
+    font-family: "Poppins", sans-serif;
     letter-spacing: 0px;
+    overflow: hidden;
 }
 
 img {
@@ -14,13 +16,14 @@ img {
 
 .splash {
     position: absolute;
-    top: 180px;
+    top: 160px;
     left: 50%;
     transform: translate(-50%);
-    width: 140px;
-    height: 140px;
-    transition: opacity .3s, top 1.5s;
+    width: 130px;
+    height: 130px;
+    transition: opacity 0.5s ease, top 1.2s cubic-bezier(0.25, 1, 0.5, 1), filter 0.5s ease;
     opacity: 0;
+    filter: drop-shadow(0 0 20px rgba(99, 102, 241, 0.4));
 }
 
 .splash.opacity {
@@ -28,20 +31,21 @@ img {
 }
 
 .splash.translate {
-    top: 129px;
+    top: 110px;
 }
 
 .splash-message {
     position: absolute;
-    top: 289px;
+    top: 280px;
     left: 0px;
-    width: 400px;
-    font: normal normal bold 19px/29px Poppins;
+    width: 100%;
+    font-size: 22px;
+    font-weight: 700;
     text-align: center;
-    letter-spacing: 0px;
-    transition: opacity 1.5s;
+    transition: opacity 1.2s ease;
     color: var(--color);
     opacity: 0;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.3);
 }
 
 .splash-message.opacity {
@@ -50,18 +54,21 @@ img {
 
 .splash-author {
     position: absolute;
-    top: 326px;
+    top: 315px;
     left: 0px;
-    width: 400px;
+    width: 100%;
     text-align: center;
-    transition: opacity 1.5s;
-    font: normal normal normal 9px/13px Poppins;
-    color: var(--color);
+    transition: opacity 1.2s ease;
+    font-size: 10px;
+    color: var(--text-muted);
     opacity: 0;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 .splash-author .author {
-    font: normal normal bold 9px/13px Poppins;
+    font-weight: 700;
+    color: var(--element-color);
 }
 
 .splash-author.opacity {
@@ -70,46 +77,52 @@ img {
 
 .message {
     position: absolute;
-    top: 347px;
+    top: 350px;
     left: 0px;
-    width: 400px;
+    width: 100%;
     text-align: center;
-    transition: opacity 1.5s;
-    font: normal normal bold 18px/27px Poppins;
-    color: var(--color);
+    transition: opacity 1.2s ease;
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--text-muted);
     opacity: 0;
-}
-
-.download-update {
-    position: absolute;
-    left: 25%;
-    margin-top: 20px;
-    width: 200px;
-    font: normal normal bold 22px / 45px Poppins;
-    color: var(--color);
-    border: 2px solid var(--color);
-    border-radius: 15px;
-    transition: background-color .2s, color .2s;
-}
-
-.download-update:hover {
-    background-color: var(--color);
-    color: var(--background);
-    cursor: pointer;
 }
 
 .message.opacity {
     opacity: 1;
 }
 
+.download-update {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 25px;
+    padding: 10px 30px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent-gradient);
+    border: none;
+    border-radius: 12px;
+    transition: var(--transition);
+    box-shadow: var(--accent-glow);
+    cursor: pointer;
+}
+
+.download-update:hover {
+    transform: translateX(-50%) translateY(-2px);
+    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.6);
+}
+
 .progress {
     position: absolute;
-    top: 410px;
-    left: 106px;
-    width: 189px;
-    height: 10px;
+    top: 400px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 240px;
+    height: 8px;
     appearance: none;
-    transition: opacity .2s;
+    transition: opacity 0.4s ease;
     opacity: 0;
 }
 
@@ -118,12 +131,13 @@ img {
 }
 
 .progress::-webkit-progress-bar {
-    background-color: var(--background);
-    border: solid 1px var(--element-color);
-    border-radius: 10px;
+    background-color: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
 }
 
 .progress::-webkit-progress-value {
-    background-color: var(--element-color);
-    border-radius: 10px;
+    background: var(--accent-gradient);
+    border-radius: 8px;
+    box-shadow: var(--accent-glow);
 }

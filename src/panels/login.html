@@ -1,20 +1,24 @@
 <div class="container">
     <div class="login-home login-tabs card">
-        <div class="login-text">Vincula tu cuenta de Microsoft</div>
+        <div class="login-text dynamic-login-title">Vincula tu cuenta de Microsoft</div>
 
         <div class="login-options">
             <button class="connect connect-home">Vincular</button>
-            <button class="cancel cancel-home"  style="display: none;">Cancelar</button>
+            <button class="cancel cancel-home" style="display: none;">Cancelar</button>
         </div>
     </div>
 
-    <div class="login-offline login-tabs card">
+    <div class="login-offline login-tabs card" style="flex-direction: column;">
+        <div class="login-text dynamic-login-title"></div>
+
+        <div style="display: flex; flex-direction: row; gap: 2rem; width: 100%;">
             <div class="login-container">
                 <div class="login-header">
                     <span data-translate="login.login">Iniciar sesión</span><span> | </span><span data-translate="login.premium">Premium</span>
                 </div>
                 <button class="connect connect-microsoftcracked" data-translate="login.microsoft_login">Iniciar sesión con Microsoft</button>
             </div>
+            
             <div class="login-container">
                 <div class="login-header">
                     <span data-translate="login.login">Iniciar sesión</span><span> | </span><span data-translate="login.offline_mode">No Premium</span>
@@ -24,13 +28,16 @@
                 </div>
                 <div class="login-options">
                     <button class="connect connect-offline" data-translate="buttons.login">Iniciar sesión</button>
-                    <button class="cancel cancel-offline" style="display: none;" data-translate="buttons.cancel">Cancelar</button>
+                </div>
+                <div class="login-options">
+                    <button class="cancel cancel-offline" style="display: none; width: 100%; margin-top: 5px;" data-translate="buttons.cancel">Cancelar</button>
                 </div>
             </div>
         </div>
+    </div>
 
     <div class="login-AZauth login-tabs card">
-        <div class="login-text">Veuillez vous connecter afin de jouer.</div>
+        <div class="login-text dynamic-login-title">Veuillez vous connecter afin de jouer.</div>
 
         <div class="input-login">
             <input type="text" class="email email-AZauth" placeholder="E-mail" />

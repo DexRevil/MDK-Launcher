@@ -43,6 +43,9 @@ async function changePanel(id) {
     let active = document.querySelector(`.active`)
     if (active) active.classList.toggle("active");
     panel.classList.add("active");
+
+    // Trigger an event so panels can update their state if needed
+    document.dispatchEvent(new CustomEvent('panelChanged', { detail: id }));
 }
 
 async function appdata() {
@@ -144,28 +147,49 @@ async function headplayer(skinBase64) {
     document.querySelector(".player-head").style.backgroundImage = `url(${skin})`;
 }
 
-async function setStatus(opt) {
+async function setStatus(opt, instanceName) {
     let nameServerElement = document.querySelector('.server-status-name')
     let statusServerElement = document.querySelector('.server-status-text')
     let playersOnline = document.querySelector('.status-player-count .player-count')
+    let iconServerElement = document.querySelector('.server-status-icon')
+    let statusServerContainer = document.querySelector('.status-server')
 
     // Si los elementos no existen, salir sin error
     if (!nameServerElement || !statusServerElement || !playersOnline) {
         return;
     }
 
-    if (!opt) {
-        statusServerElement.classList.add('red')
-        statusServerElement.innerHTML = `Ferme - 0 ms`
-        document.querySelector('.status-player-count').classList.add('red')
-        playersOnline.innerHTML = '0'
+    if (!opt || opt.status_server === false) {
+        if (statusServerContainer) statusServerContainer.style.display = 'none';
         return
     }
 
+    // Reset styles for normal state
+    if (statusServerContainer) statusServerContainer.style.display = 'flex';
+    statusServerElement.style.display = 'block';
+    document.querySelector('.status-player-count').style.display = 'flex';
+    nameServerElement.style.margin = '0';
+    statusServerContainer.style.justifyContent = 'space-between';
+    
+    if (iconServerElement) {
+        iconServerElement.style.display = 'block';
+    }
+
     let { ip, port, nameServer } = opt
-    nameServerElement.innerHTML = nameServer
+
+    // Mostrar el nombre de la instancia en lugar de la IP si está disponible
+    nameServerElement.innerHTML = instanceName || nameServer
+
+    // Atualizar imagen de la instancia si el elemento de la imagen existe
+    if (iconServerElement && instanceName) {
+        iconServerElement.src = `http://147.185.221.30:13602/files/logoins/${instanceName}.png`;
+        iconServerElement.alt = instanceName;
+    }
+
     let status = new Status(ip, port);
+    console.debug(`[Status] Checking status for ${ip}:${port}...`);
     let statusServer = await status.getStatus().then(res => res).catch(err => err);
+    console.debug(`[Status] Response for ${ip}:${port}:`, statusServer);
 
     if (!statusServer.error) {
         statusServerElement.classList.remove('red')
@@ -177,6 +201,7 @@ async function setStatus(opt) {
         statusServerElement.innerHTML = `Ferme - 0 ms`
         document.querySelector('.status-player-count').classList.add('red')
         playersOnline.innerHTML = '0'
+        console.warn(`[Status] Server ${ip}:${port} reported as offline. Error:`, statusServer.error);
     }
 }
 
