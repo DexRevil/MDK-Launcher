@@ -8,27 +8,259 @@ const { shell, ipcRenderer } = require('electron')
 
 class Home {
     static id = "home";
+
+    constructor() {
+        this.selectedRating = 0;
+        this.currentRatedInstance = null;
+        this.ratingsCache = {
+            "Bingo": { average: 4.8, total_votes: 6, user_rating: null },
+            "Puchungolan": { average: 4.9, total_votes: 12, user_rating: null },
+            "SurvivalZ": { average: 4.6, total_votes: 8, user_rating: null },
+            "hypixel": { average: 4.7, total_votes: 15, user_rating: null }
+        };
+        this.ratingDescriptions = {
+            1: "⭐ 1/5 - Muy malo",
+            2: "⭐⭐ 2/5 - Regular",
+            3: "⭐⭐⭐ 3/5 - Bueno",
+            4: "⭐⭐⭐⭐ 4/5 - Muy bueno",
+            5: "⭐⭐⭐⭐⭐ 5/5 - ¡Excelente!"
+        };
+    }
+
     async init(config) {
-    this.config = config;
-    this.db = new database();
+        this.config = config;
+        this.db = new database();
 
-    // Llamadas iniciales
-    this.setupEventListeners();
-    this.updateInstancesData();
-    this.IniciarEstadoDiscord();
-    this.initTooltips();
-
-    // 🔁 Actualización automática cada 30s
-    setInterval(() => {
+        // Llamadas iniciales
+        this.setupEventListeners();
+        this.setupRatingListeners();
+        await this.loadRatingsData();
         this.updateInstancesData();
-    }, 30000); // 30,000 ms = 30 segundos
-}
+        this.IniciarEstadoDiscord();
+        this.initTooltips();
 
-    
+        // 🔁 Actualización automática cada 30s
+        setInterval(() => {
+            this.updateInstancesData();
+        }, 30000); // 30,000 ms = 30 segundos
+    }
 
     async IniciarEstadoDiscord() {
         ipcRenderer.send('new-status-discord');
         document.querySelector('.settings-btn').addEventListener('click', e => changePanel('settings'))
+    }
+
+    async loadRatingsData() {
+        try {
+            let configClient = await this.db.readData('configClient');
+            if (configClient && configClient.instance_ratings) {
+                this.ratingsCache = { ...this.ratingsCache, ...configClient.instance_ratings };
+            }
+
+            let auth = await this.db.readData('accounts', configClient?.account_selected);
+            let remoteRatings = await config.getRatings(null, auth?.name);
+            if (remoteRatings && remoteRatings.ratings) {
+                for (let [inst, rData] of Object.entries(remoteRatings.ratings)) {
+                    this.ratingsCache[inst] = {
+                        average: typeof rData.average === 'number' ? rData.average : 5.0,
+                        total_votes: typeof rData.total_votes === 'number' ? rData.total_votes : 0,
+                        user_rating: rData.user_rating || null
+                    };
+                }
+                if (configClient) {
+                    configClient.instance_ratings = this.ratingsCache;
+                    await this.db.updateData('configClient', configClient);
+                }
+            }
+        } catch (err) {
+            console.debug('[Ratings] Usando datos de clasificación locales:', err);
+        }
+    }
+
+    updateRatingUI(instanceName) {
+        if (!instanceName) return;
+
+        let ratingCard = document.getElementById('instance-rating-card');
+        let scoreText = document.getElementById('main-rating-score');
+        let votesCount = document.getElementById('main-rating-count');
+        let userBadge = document.getElementById('main-rating-user-badge');
+        let userVotedScore = document.getElementById('user-voted-score');
+        let starsInline = document.querySelectorAll('#main-rating-stars .star-mini');
+
+        let rData = this.ratingsCache[instanceName] || { average: 5.0, total_votes: 0, user_rating: null };
+        let avg = typeof rData.average === 'number' ? rData.average : 5.0;
+        let votes = typeof rData.total_votes === 'number' ? rData.total_votes : 0;
+
+        if (scoreText) scoreText.textContent = avg.toFixed(1);
+        if (votesCount) votesCount.textContent = `${votes} ${votes === 1 ? 'voto' : 'votos'}`;
+
+        let rounded = Math.round(avg);
+        starsInline.forEach(star => {
+            let val = parseInt(star.getAttribute('data-val'));
+            if (val <= rounded) {
+                star.classList.add('filled');
+            } else {
+                star.classList.remove('filled');
+            }
+        });
+
+        if (rData.user_rating && userBadge && userVotedScore) {
+            userVotedScore.textContent = rData.user_rating;
+            userBadge.style.display = 'inline-block';
+        } else if (userBadge) {
+            userBadge.style.display = 'none';
+        }
+
+        if (ratingCard) {
+            ratingCard.style.display = 'flex';
+        }
+    }
+
+    setupRatingListeners() {
+        const rateBtn = document.getElementById('open-rate-modal-btn');
+        const ratingCard = document.getElementById('instance-rating-card');
+        const ratingPopup = document.getElementById('rating-popup');
+        const closeBtn = document.getElementById('close-rating-popup');
+        const cancelBtn = document.getElementById('rating-btn-cancel');
+        const submitBtn = document.getElementById('rating-btn-submit');
+        const interactiveStars = document.querySelectorAll('.interactive-star');
+        const feedbackLabel = document.getElementById('rating-score-feedback');
+        const modalInstanceName = document.getElementById('rating-modal-instance-name');
+        const commentInput = document.getElementById('rating-comment-textarea');
+
+        const openModal = async () => {
+            let configClient = await this.db.readData('configClient');
+            let instanceName = configClient?.instance_selct || 'Instancia';
+            this.currentRatedInstance = instanceName;
+
+            if (modalInstanceName) modalInstanceName.textContent = instanceName;
+            if (commentInput) commentInput.value = '';
+
+            let existingRating = this.ratingsCache[instanceName]?.user_rating || 0;
+            this.selectedRating = existingRating;
+
+            this.renderModalStars(existingRating);
+
+            if (existingRating > 0) {
+                if (feedbackLabel) feedbackLabel.textContent = `Tu voto actual: ${this.ratingDescriptions[existingRating] || existingRating + ' estrellas'}`;
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.querySelector('span').textContent = 'Actualizar Calificación';
+                }
+            } else {
+                if (feedbackLabel) feedbackLabel.textContent = '¡Haz clic en una estrella para calificar!';
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.querySelector('span').textContent = 'Enviar Calificación';
+                }
+            }
+
+            if (ratingPopup) ratingPopup.style.display = 'flex';
+        };
+
+        if (rateBtn) rateBtn.addEventListener('click', e => { e.stopPropagation(); openModal(); });
+        if (ratingCard) ratingCard.addEventListener('click', () => openModal());
+
+        const closeModal = () => {
+            if (ratingPopup) ratingPopup.style.display = 'none';
+        };
+
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+        if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+
+        interactiveStars.forEach(star => {
+            let ratingVal = parseInt(star.getAttribute('data-rating'));
+
+            star.addEventListener('mouseenter', () => {
+                this.renderModalStars(ratingVal, true);
+                if (feedbackLabel) feedbackLabel.textContent = this.ratingDescriptions[ratingVal] || `${ratingVal} estrellas`;
+            });
+
+            star.addEventListener('mouseleave', () => {
+                this.renderModalStars(this.selectedRating, false);
+                if (this.selectedRating > 0) {
+                    if (feedbackLabel) feedbackLabel.textContent = this.ratingDescriptions[this.selectedRating];
+                } else {
+                    if (feedbackLabel) feedbackLabel.textContent = '¡Haz clic en una estrella para calificar!';
+                }
+            });
+
+            star.addEventListener('click', () => {
+                this.selectedRating = ratingVal;
+                this.renderModalStars(this.selectedRating, false);
+                if (feedbackLabel) feedbackLabel.textContent = this.ratingDescriptions[this.selectedRating];
+                if (submitBtn) submitBtn.disabled = false;
+            });
+        });
+
+        if (submitBtn) {
+            submitBtn.addEventListener('click', async () => {
+                if (!this.selectedRating || !this.currentRatedInstance) return;
+
+                let configClient = await this.db.readData('configClient');
+                let auth = await this.db.readData('accounts', configClient?.account_selected);
+                let userName = auth?.name || 'Jugador';
+                let uuid = auth?.uuid || '';
+                let comment = commentInput ? commentInput.value.trim() : '';
+
+                let instanceName = this.currentRatedInstance;
+                let current = this.ratingsCache[instanceName] || { average: 5.0, total_votes: 0, user_rating: null };
+
+                let previousUserRating = current.user_rating;
+                let newTotalVotes = current.total_votes;
+                let newAvg = current.average;
+
+                if (previousUserRating) {
+                    let totalSum = (current.average * current.total_votes) - previousUserRating + this.selectedRating;
+                    newAvg = parseFloat((totalSum / current.total_votes).toFixed(1));
+                } else {
+                    newTotalVotes = current.total_votes + 1;
+                    let totalSum = (current.average * current.total_votes) + this.selectedRating;
+                    newAvg = parseFloat((totalSum / newTotalVotes).toFixed(1));
+                }
+
+                this.ratingsCache[instanceName] = {
+                    average: newAvg,
+                    total_votes: newTotalVotes,
+                    user_rating: this.selectedRating
+                };
+
+                if (configClient) {
+                    configClient.instance_ratings = this.ratingsCache;
+                    await this.db.updateData('configClient', configClient);
+                }
+
+                config.submitRating(instanceName, userName, this.selectedRating, comment, uuid).catch(() => {});
+
+                closeModal();
+
+                this.updateRatingUI(instanceName);
+                this.updateInstancesData();
+
+                let popupSuccess = new popup();
+                popupSuccess.openPopup({
+                    title: '¡Calificación Enviada! ⭐',
+                    content: `Has calificado <b>${instanceName}</b> con <b>${this.selectedRating} estrellas</b>. ¡Gracias por tu opinión!`,
+                    color: 'green',
+                    options: true
+                });
+            });
+        }
+    }
+
+    renderModalStars(ratingVal, isHover = false) {
+        const interactiveStars = document.querySelectorAll('.interactive-star');
+        interactiveStars.forEach(star => {
+            let val = parseInt(star.getAttribute('data-rating'));
+            star.classList.remove('hovered', 'selected');
+            if (val <= ratingVal) {
+                if (isHover) {
+                    star.classList.add('hovered');
+                } else {
+                    star.classList.add('selected');
+                }
+            }
+        });
     }
 
     setupEventListeners() {
@@ -41,36 +273,42 @@ class Home {
         instanceBTN.addEventListener('click', async e => {
             let configClient = await this.db.readData('configClient');
             let instancesList = await config.getInstanceList();
-            let auth = await this.db.readData('accounts', configClient.account_selected);
+            let auth = await this.db.readData('accounts', configClient?.account_selected);
 
             if (e.target.classList.contains('instance-select')) {
                 instancesListPopup.innerHTML = '';
                 for (let instance of instancesList) {
                     if (!instance) continue;
+                    let rData = this.ratingsCache[instance.name] || { average: 5.0, total_votes: 0 };
+                    let ratingScore = (typeof rData.average === 'number' ? rData.average : 5.0).toFixed(1);
+                    let ratingVotes = typeof rData.total_votes === 'number' ? rData.total_votes : 0;
+
+                    let ratingBadgeHtml = `
+                        <div class="instance-rating-pill">
+                            <span class="pill-star">★</span>
+                            <span class="pill-score">${ratingScore}</span>
+                            <span class="pill-votes">(${ratingVotes})</span>
+                        </div>
+                    `;
+
+                    let isAllowed = true;
                     if (instance.whitelistActive) {
-                        instance.whitelist.map(whitelist => {
-                            if (whitelist.toLowerCase() === auth?.name?.toLowerCase()) {
-                                instancesListPopup.innerHTML += `
+                        isAllowed = instance.whitelist.some(w => w.toLowerCase() === auth?.name?.toLowerCase());
+                    }
+
+                    if (isAllowed) {
+                        instancesListPopup.innerHTML += `
                             <div class="tooltip-container">
                                 <div id="${instance.name}" class="instance-elements${instance.name === configClient.instance_selct ? ' active-instance' : ''}">
-                                ${instance.name}
+                                    <span class="instance-element-name">${instance.name}</span>
+                                    ${ratingBadgeHtml}
                                 </div>
-                                <span class="tooltip-text">Haz clic para seleccionar esta instancia</span>
-                            </div>`
-                            }
-                        })
-                    } else {
-                        instancesListPopup.innerHTML += `
-                    <div class="tooltip-container">
-                        <div id="${instance.name}" class="instance-elements${instance.name === configClient.instance_selct ? ' active-instance' : ''}">
-                        ${instance.name}
-                        </div>
-                        <span class="tooltip-text">Haz clic para seleccionar esta instancia</span>
-                    </div>`
+                                <span class="tooltip-text">Seleccionar ${instance.name} (★ ${ratingScore})</span>
+                            </div>`;
                     }
                 }
 
-                instancePopup.style.display = 'flex'
+                instancePopup.style.display = 'flex';
             } else {
                 this.startGame();
             }
@@ -78,22 +316,25 @@ class Home {
 
         // Click en el popup de instancias
         instancePopup.addEventListener('click', async e => {
-            let configClient = await this.db.readData('configClient');
-            let instancesList = await config.getInstanceList();
-
-            if (e.target.classList.contains('instance-elements')) {
-                let newInstanceSelect = e.target.id;
+            let target = e.target.closest('.instance-elements');
+            if (target) {
+                let configClient = await this.db.readData('configClient');
+                let newInstanceSelect = target.id;
                 let activeInstanceSelect = document.querySelector('.active-instance');
 
                 if (activeInstanceSelect) activeInstanceSelect.classList.remove('active-instance');
-                e.target.classList.add('active-instance');
+                target.classList.add('active-instance');
 
                 configClient.instance_selct = newInstanceSelect;
                 await this.db.updateData('configClient', configClient);
                 instancePopup.style.display = 'none';
+                
                 let instance = await config.getInstanceList();
                 let options = instance.find(i => i.name == configClient.instance_selct);
-                await setStatus(options.status, options.name);
+                if (options) {
+                    await setStatus(options.status, options.name);
+                }
+                this.updateRatingUI(newInstanceSelect);
             }
         });
 
@@ -102,89 +343,95 @@ class Home {
     }
 
     async updateInstancesData() {
-    let configClient = await this.db.readData('configClient')
-    let auth = await this.db.readData('accounts', configClient.account_selected)
-    let instancesList = await config.getInstanceList()
-    let instanceSelect = instancesList.find(i => i.name == configClient?.instance_selct) ? configClient?.instance_selct : null
+        let configClient = await this.db.readData('configClient');
+        let auth = await this.db.readData('accounts', configClient?.account_selected);
+        let instancesList = await config.getInstanceList();
+        let instanceSelect = instancesList.find(i => i.name == configClient?.instance_selct) ? configClient?.instance_selct : null;
 
-    let instanceBTN = document.querySelector('.play-instance')
-    let instancePopup = document.querySelector('.instance-popup')
-    let instancesListPopup = document.querySelector('.instances-List')
-    let instanceCloseBTN = document.querySelector('.close-popup')
-    let instancesVisibleList = document.querySelector('.instances-visible-list')
+        let instanceBTN = document.querySelector('.play-instance');
+        let instancesVisibleList = document.querySelector('.instances-visible-list');
 
-    if (instancesList.length === 1) {
-        document.querySelector('.instance-select').style.display = 'none'
-        instanceBTN.style.paddingRight = '0'
-    }
-
-    if (!instanceSelect) {
-        let newInstanceSelect = instancesList.find(i => i.whitelistActive == false)
-        if (newInstanceSelect) {
-            let configClient = await this.db.readData('configClient')
-            configClient.instance_selct = newInstanceSelect.name
-            instanceSelect = newInstanceSelect.name
-            await this.db.updateData('configClient', configClient)
-        } else {
-            // no available public instance, leave selection null
-            instanceSelect = null
+        if (instancesList.length === 1 && document.querySelector('.instance-select')) {
+            document.querySelector('.instance-select').style.display = 'none';
+            instanceBTN.style.paddingRight = '0';
         }
-    }
 
-    // Sidebar instancias visibles con letras
-    instancesVisibleList.innerHTML = ''
+        if (!instanceSelect) {
+            let newInstanceSelect = instancesList.find(i => i.whitelistActive == false);
+            if (newInstanceSelect) {
+                let configClient = await this.db.readData('configClient');
+                configClient.instance_selct = newInstanceSelect.name;
+                instanceSelect = newInstanceSelect.name;
+                await this.db.updateData('configClient', configClient);
+            } else {
+                instanceSelect = null;
+            }
+        }
 
-    for (let instance of instancesList) {
-        if (!instance) continue;
-        if (instance.whitelistActive) {
-            let whitelist = instance.whitelist.find(w => w.toLowerCase() === auth?.name?.toLowerCase())
-            if (!whitelist) continue;
+        // Actualizar clasificación de la instancia activa
+        if (instanceSelect) {
+            this.updateRatingUI(instanceSelect);
+        }
 
-            if (instance.name == instanceSelect) {
-                let newInstanceSelect = instancesList.find(i => i.whitelistActive == false)
-                if (newInstanceSelect) {
-                    let configClient = await this.db.readData('configClient')
-                    configClient.instance_selct = newInstanceSelect.name
-                    instanceSelect = newInstanceSelect.name
-                    await this.db.updateData('configClient', configClient)
-                    setStatus(newInstanceSelect.status, newInstanceSelect.name)
+        // Sidebar instancias visibles con iconos
+        instancesVisibleList.innerHTML = '';
+
+        for (let instance of instancesList) {
+            if (!instance) continue;
+            if (instance.whitelistActive) {
+                let whitelist = instance.whitelist.find(w => w.toLowerCase() === auth?.name?.toLowerCase());
+                if (!whitelist) continue;
+
+                if (instance.name == instanceSelect) {
+                    let newInstanceSelect = instancesList.find(i => i.whitelistActive == false);
+                    if (newInstanceSelect) {
+                        let configClient = await this.db.readData('configClient');
+                        configClient.instance_selct = newInstanceSelect.name;
+                        instanceSelect = newInstanceSelect.name;
+                        await this.db.updateData('configClient', configClient);
+                        setStatus(newInstanceSelect.status, newInstanceSelect.name);
+                        this.updateRatingUI(newInstanceSelect.name);
+                    }
+                }
+            } else {
+                if (instance.name == instanceSelect) {
+                    setStatus(instance.status, instance.name);
+                    this.updateRatingUI(instance.name);
                 }
             }
-        } else {
-            if (instance.name == instanceSelect) {
-                setStatus(instance.status, instance.name)
-            }
+
+            let rData = this.ratingsCache[instance.name] || { average: 5.0, total_votes: 0 };
+            let ratingScore = (typeof rData.average === 'number' ? rData.average : 5.0).toFixed(1);
+
+            let instanceDiv = document.createElement('div');
+            instanceDiv.id = instance.name;
+            instanceDiv.className = `instance-main-item${instance.name === instanceSelect ? ' active-instance' : ''}`;
+            instanceDiv.title = `${instance.name} (★ ${ratingScore})`;
+
+            // Crear imagen
+            let img = document.createElement('img');
+            img.src = `http://147.185.221.30:13602/files/logoins/${instance.name}.png`;
+            img.alt = instance.name;
+            img.className = 'instance-icon';
+
+            // Insertar imagen dentro del div
+            instanceDiv.appendChild(img);
+
+            instanceDiv.addEventListener('click', async () => {
+                let configClient = await this.db.readData('configClient');
+                configClient.instance_selct = instance.name;
+                await this.db.updateData('configClient', configClient);
+
+                document.querySelectorAll('.instance-main-item').forEach(el => el.classList.remove('active-instance'));
+                instanceDiv.classList.add('active-instance');
+
+                setStatus(instance.status, instance.name);
+                this.updateRatingUI(instance.name);
+            });
+
+            instancesVisibleList.appendChild(instanceDiv);
         }
-
-        let instanceDiv = document.createElement('div')
-        instanceDiv.id = instance.name
-        instanceDiv.className = `instance-main-item${instance.name === instanceSelect ? ' active-instance' : ''}`
-        instanceDiv.title = instance.name // tooltip opcional
-
-        // Crear imagen
-        let img = document.createElement('img')
-        img.src = `http://147.185.221.30:13602/files/logoins/${instance.name}.png` // <-- aquí la URL que quieras
-        img.alt = instance.name
-        img.className = 'instance-icon'
-
-        // Insertar imagen dentro del div
-        instanceDiv.appendChild(img)
-
-
-        instanceDiv.addEventListener('click', async () => {
-            let configClient = await this.db.readData('configClient')
-            configClient.instance_selct = instance.name
-            await this.db.updateData('configClient', configClient)
-
-            document.querySelectorAll('.instance-main-item').forEach(el => el.classList.remove('active-instance'))
-            instanceDiv.classList.add('active-instance')
-
-            setStatus(instance.status, instance.name)
-        })
-
-        instancesVisibleList.appendChild(instanceDiv)
     }
-}
 
     async startGame() {
         let launch = new Launch()

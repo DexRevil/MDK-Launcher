@@ -98,6 +98,48 @@ class Config {
             })
         }
     }
+
+    async getRatings(instanceName = null, userName = null) {
+        let ratingsUrl = `${url}/files/ratings.php`;
+        let params = [];
+        if (instanceName) params.push(`instance=${encodeURIComponent(instanceName)}`);
+        if (userName) params.push(`user=${encodeURIComponent(userName)}`);
+        if (params.length > 0) ratingsUrl += `?${params.join('&')}`;
+
+        try {
+            let res = await nodeFetch(ratingsUrl, { timeout: 4000 });
+            if (res.ok) {
+                return await res.json();
+            }
+        } catch (e) {
+            console.debug('[Config] Servidor de calificaciones no disponible en este momento:', e.message || e);
+        }
+        return null;
+    }
+
+    async submitRating(instanceName, userName, rating, comment = '', uuid = '') {
+        let ratingsUrl = `${url}/files/ratings.php`;
+        try {
+            let res = await nodeFetch(ratingsUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    instance: instanceName,
+                    user: userName,
+                    uuid: uuid,
+                    rating: parseInt(rating),
+                    comment: comment
+                }),
+                timeout: 5000
+            });
+            if (res.ok) {
+                return await res.json();
+            }
+        } catch (e) {
+            console.warn('[Config] Error al enviar calificación al servidor:', e.message || e);
+        }
+        return null;
+    }
 }
 
 export default new Config;

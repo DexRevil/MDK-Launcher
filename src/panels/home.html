@@ -1,15 +1,42 @@
 <div class="container">
-    <div class="status-server card" style="display: none;">
-        <img class="server-status-icon" src="assets/images/default/setve.png" alt="Server Logo" onerror="this.src='assets/images/default/setve.png'">
-        <div class="server-status-infos">
-            <div class="server-status-name">Seleccione una instancia...</div>
-            <div class="server-status-text">Esperando...</div>
+    <div class="top-status-container">
+        <div class="status-server card" style="display: none;">
+            <img class="server-status-icon" src="assets/images/default/setve.png" alt="Server Logo" onerror="this.src='assets/images/default/setve.png'">
+            <div class="server-status-infos">
+                <div class="server-status-name">Seleccione una instancia...</div>
+                <div class="server-status-text">Esperando...</div>
+            </div>
+            <div class="status-player-count">
+                <div class="player-count">0</div>
+            </div>
         </div>
-        <div class="status-player-count">
-            <div class="player-count">0</div>
+
+        <div class="instance-rating-card card" id="instance-rating-card" style="display: none;">
+            <div class="rating-icon-container">
+                <span class="rating-star-big">★</span>
+            </div>
+            <div class="rating-card-details">
+                <div class="rating-card-header">
+                    <span class="rating-score-text" id="main-rating-score">0.0</span>
+                    <div class="rating-stars-inline" id="main-rating-stars">
+                        <span class="star-mini" data-val="1">★</span>
+                        <span class="star-mini" data-val="2">★</span>
+                        <span class="star-mini" data-val="3">★</span>
+                        <span class="star-mini" data-val="4">★</span>
+                        <span class="star-mini" data-val="5">★</span>
+                    </div>
+                </div>
+                <div class="rating-card-meta">
+                    <span class="rating-votes-label" id="main-rating-count">0 votos</span>
+                    <span class="rating-user-badge" id="main-rating-user-badge" style="display: none;">Tu voto: <b id="user-voted-score">5</b>★</span>
+                </div>
+            </div>
+            <button class="rate-action-btn" id="open-rate-modal-btn" data-tooltip="Calificar esta instancia">
+                <span class="rate-action-icon">⭐</span>
+                <span class="rate-action-text">Calificar</span>
+            </button>
         </div>
     </div>
-
 
     <div class="home-bottom">
         
@@ -22,20 +49,19 @@
         </div>
         <div class="instances-sidebar" data-tooltip="Seleccionar instancia">
             <div class="instances-visible-list">
+            </div>
         </div>
-        </div>
-            <div class="settings-btn icon-settings" data-tooltip="Configuración"></div>
-        </div>
+        <div class="settings-btn icon-settings" data-tooltip="Configuración"></div>
     </div>
 
     <div class="play-elements">
-            <div class="play-instance" data-tooltip="Juega en tu servidor favorito">
-                <button class="play-btn">JUGAR</button>
-            </div>
-            <div class="info-starting-game">
-                <progress value="0" max="0" class="progress-bar"></progress>
-                <div class="info-starting-game-text">Conectando con el servidor...</div>
-            </div>
+        <div class="play-instance" data-tooltip="Juega en tu servidor favorito">
+            <button class="play-btn">JUGAR</button>
+        </div>
+        <div class="info-starting-game">
+            <progress value="0" max="0" class="progress-bar"></progress>
+            <div class="info-starting-game-text">Conectando con el servidor...</div>
+        </div>
     </div>
     
     <div class="instance-popup">
@@ -43,6 +69,41 @@
             <div class="close-popup icon-close"></div>
             <p>Selecciona la instancia.</p>
             <div class="instances-List"></div>
+        </div>
+    </div>
+
+    <!-- Modal de Clasificación / Rating por Estrella -->
+    <div class="rating-popup" id="rating-popup" style="display: none;">
+        <div class="rating-tab card">
+            <div class="close-rating-popup icon-close" id="close-rating-popup"></div>
+            <div class="rating-modal-header">
+                <div class="rating-modal-badge">⭐</div>
+                <h3 class="rating-modal-title">Calificar Instancia</h3>
+                <p class="rating-modal-sub" id="rating-modal-instance-name">Cargando...</p>
+            </div>
+
+            <div class="rating-interactive-stars" id="rating-interactive-stars">
+                <span class="interactive-star" data-rating="1" title="1 estrella">★</span>
+                <span class="interactive-star" data-rating="2" title="2 estrellas">★</span>
+                <span class="interactive-star" data-rating="3" title="3 estrellas">★</span>
+                <span class="interactive-star" data-rating="4" title="4 estrellas">★</span>
+                <span class="interactive-star" data-rating="5" title="5 estrellas">★</span>
+            </div>
+
+            <div class="rating-score-feedback" id="rating-score-feedback">
+                ¡Haz clic en una estrella para calificar!
+            </div>
+
+            <div class="rating-comment-area">
+                <textarea class="rating-comment-textarea" id="rating-comment-textarea" placeholder="Escribe un comentario u opinión opcional sobre esta instancia..." maxlength="200"></textarea>
+            </div>
+
+            <div class="rating-modal-footer">
+                <button class="rating-btn-cancel" id="rating-btn-cancel">Cancelar</button>
+                <button class="rating-btn-submit" id="rating-btn-submit" disabled>
+                    <span>Enviar Calificación</span>
+                </button>
+            </div>
         </div>
     </div>
 </div>
