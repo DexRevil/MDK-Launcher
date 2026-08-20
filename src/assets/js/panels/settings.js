@@ -253,21 +253,21 @@ class Settings {
     async launcher() {
         let configClient = await this.db.readData('configClient');
 
-        let maxDownloadFiles = configClient?.launcher_config?.download_multi || 5;
+        let maxDownloadFiles = configClient?.launcher_config?.download_multi || 3;
         let maxDownloadFilesInput = document.querySelector(".max-files");
         let maxDownloadFilesReset = document.querySelector(".max-files-reset");
         maxDownloadFilesInput.value = maxDownloadFiles;
 
         maxDownloadFilesInput.addEventListener("change", async () => {
             let configClient = await this.db.readData('configClient')
-            configClient.launcher_config.download_multi = maxDownloadFilesInput.value;
+            configClient.launcher_config.download_multi = parseInt(maxDownloadFilesInput.value) || 3;
             await this.db.updateData('configClient', configClient);
         })
 
         maxDownloadFilesReset.addEventListener("click", async () => {
             let configClient = await this.db.readData('configClient')
-            maxDownloadFilesInput.value = 5
-            configClient.launcher_config.download_multi = 5;
+            maxDownloadFilesInput.value = 3
+            configClient.launcher_config.download_multi = 3;
             await this.db.updateData('configClient', configClient);
         })
 
@@ -309,39 +309,41 @@ class Settings {
         })
 
         let closeBox = document.querySelector(".close-box");
-        let closeLauncher = configClient?.launcher_config?.closeLauncher || "close-launcher";
+        if (closeBox) {
+            let closeLauncher = configClient?.launcher_config?.closeLauncher || "close-launcher";
 
-        if (closeLauncher == "close-launcher") {
-            document.querySelector('.close-launcher').classList.add('active-close');
-        } else if (closeLauncher == "close-all") {
-            document.querySelector('.close-all').classList.add('active-close');
-        } else if (closeLauncher == "close-none") {
-            document.querySelector('.close-none').classList.add('active-close');
-        }
-
-        closeBox.addEventListener("click", async e => {
-            if (e.target.classList.contains('close-btn')) {
-                let activeClose = document.querySelector('.active-close');
-                if (e.target.classList.contains('active-close')) return
-                activeClose?.classList.toggle('active-close');
-
-                let configClient = await this.db.readData('configClient')
-
-                if (e.target.classList.contains('close-launcher')) {
-                    e.target.classList.toggle('active-close');
-                    configClient.launcher_config.closeLauncher = "close-launcher";
-                    await this.db.updateData('configClient', configClient);
-                } else if (e.target.classList.contains('close-all')) {
-                    e.target.classList.toggle('active-close');
-                    configClient.launcher_config.closeLauncher = "close-all";
-                    await this.db.updateData('configClient', configClient);
-                } else if (e.target.classList.contains('close-none')) {
-                    e.target.classList.toggle('active-close');
-                    configClient.launcher_config.closeLauncher = "close-none";
-                    await this.db.updateData('configClient', configClient);
-                }
+            if (closeLauncher == "close-launcher") {
+                document.querySelector('.close-launcher')?.classList.add('active-close');
+            } else if (closeLauncher == "close-all") {
+                document.querySelector('.close-all')?.classList.add('active-close');
+            } else if (closeLauncher == "close-none") {
+                document.querySelector('.close-none')?.classList.add('active-close');
             }
-        })
+
+            closeBox.addEventListener("click", async e => {
+                if (e.target.classList.contains('close-btn')) {
+                    let activeClose = document.querySelector('.active-close');
+                    if (e.target.classList.contains('active-close')) return
+                    activeClose?.classList.toggle('active-close');
+
+                    let configClient = await this.db.readData('configClient')
+
+                    if (e.target.classList.contains('close-launcher')) {
+                        e.target.classList.toggle('active-close');
+                        configClient.launcher_config.closeLauncher = "close-launcher";
+                        await this.db.updateData('configClient', configClient);
+                    } else if (e.target.classList.contains('close-all')) {
+                        e.target.classList.toggle('active-close');
+                        configClient.launcher_config.closeLauncher = "close-all";
+                        await this.db.updateData('configClient', configClient);
+                    } else if (e.target.classList.contains('close-none')) {
+                        e.target.classList.toggle('active-close');
+                        configClient.launcher_config.closeLauncher = "close-none";
+                        await this.db.updateData('configClient', configClient);
+                    }
+                }
+            })
+        }
     }
 
     async instancesManagement() {
@@ -352,23 +354,34 @@ class Settings {
             });
         }
 
-        const modal = document.getElementById('instanceDeleteModal');
-        const cancelBtn = document.getElementById('btnCancelDeleteInstance');
-        const confirmBtn = document.getElementById('btnConfirmDeleteInstance');
+        // Delegación de eventos para la lista de instancias
+        const listContainer = document.getElementById('instances-client-list');
+        if (listContainer) {
+            listContainer.addEventListener('click', (e) => {
+                let deleteBtn = e.target.closest('.btn-delete-instance-trash');
+                if (deleteBtn) {
+                    let isInstalled = deleteBtn.getAttribute('data-installed') === 'true';
+                    if (!isInstalled || deleteBtn.classList.contains('disabled')) return;
+                    let name = deleteBtn.getAttribute('data-instance');
+                    let path = deleteBtn.getAttribute('data-path');
+                    let size = deleteBtn.getAttribute('data-size');
+                    this.promptDeleteInstance(name, path, size);
+                }
+            });
+        }
 
-        if (cancelBtn && modal) {
-            cancelBtn.addEventListener('click', () => {
-                modal.style.display = 'none';
+        // Delegación de eventos para los botones del modal de eliminación
+        document.addEventListener('click', (e) => {
+            if (e.target && (e.target.id === 'btnCancelDeleteInstance' || e.target.closest('#btnCancelDeleteInstance'))) {
+                const modal = document.getElementById('instanceDeleteModal');
+                if (modal) modal.style.display = 'none';
                 this.instanceToDelete = null;
-            });
-        }
-
-        if (confirmBtn && modal) {
-            confirmBtn.addEventListener('click', async () => {
-                if (!this.instanceToDelete) return;
-                await this.executeDeleteInstance(this.instanceToDelete);
-            });
-        }
+            } else if (e.target && (e.target.id === 'btnConfirmDeleteInstance' || e.target.closest('#btnConfirmDeleteInstance'))) {
+                if (this.instanceToDelete) {
+                    this.executeDeleteInstance(this.instanceToDelete);
+                }
+            }
+        });
 
         await this.loadInstancesClientList();
     }
@@ -541,7 +554,13 @@ class Settings {
                     </div>
                 </div>
                 <div class="instance-client-actions">
-                    <button class="btn-delete-instance-trash ${inst.isInstalled ? '' : 'disabled'}" title="${inst.isInstalled ? 'Eliminar archivos de la instancia de tu PC' : 'Esta instancia aún no está descargada'}" data-instance="${inst.name}" ${inst.isInstalled ? '' : 'disabled'}>
+                    <button class="btn-delete-instance-trash ${inst.isInstalled ? '' : 'disabled'}" 
+                        title="${inst.isInstalled ? 'Eliminar archivos de la instancia de tu PC' : 'Esta instancia aún no está descargada'}" 
+                        data-instance="${inst.name}" 
+                        data-path="${inst.path}"
+                        data-size="${inst.formattedSize}"
+                        data-installed="${inst.isInstalled}"
+                        ${inst.isInstalled ? '' : 'disabled'}>
                         <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                         </svg>
@@ -550,35 +569,31 @@ class Settings {
                 </div>
             `;
 
-            // Evento botón eliminar
-            let deleteBtn = card.querySelector('.btn-delete-instance-trash');
-            if (deleteBtn && inst.isInstalled) {
-                deleteBtn.addEventListener('click', () => {
-                    this.promptDeleteInstance(inst.name, inst.path, inst.formattedSize);
-                });
-            }
-
             listContainer.appendChild(card);
         }
     }
 
-    promptDeleteInstance(instanceName, instancePath, formattedSize) {
+    async promptDeleteInstance(instanceName, instancePath, formattedSize) {
         const modal = document.getElementById('instanceDeleteModal');
         const title = document.getElementById('deleteModalTitle');
         const desc = document.getElementById('deleteModalDesc');
         const anim = document.getElementById('deleteStatusAnim');
         const actions = document.getElementById('deleteModalActions');
 
-        if (!modal) return;
+        if (!instancePath) {
+            instancePath = await this.getLocalInstancePath(instanceName);
+        }
 
         this.instanceToDelete = { name: instanceName, path: instancePath };
 
-        title.textContent = `¿Eliminar Instancia "${instanceName}"?`;
-        desc.innerHTML = `Se eliminarán todos los archivos locales descargados de <b>${instanceName}</b> (~${formattedSize}).<br><br><small style="color:#94a3b8;">La próxima vez que juegues, el launcher volverá a descargar la instancia si lo deseas.</small>`;
+        if (title) title.textContent = `¿Eliminar Instancia "${instanceName}"?`;
+        if (desc) desc.innerHTML = `Se eliminarán todos los archivos locales descargados de <b>${instanceName}</b> (~${formattedSize || '0 B'}).<br><br><small style="color:#94a3b8;">La próxima vez que juegues, el launcher volverá a descargar la instancia si lo deseas.</small>`;
         
         if (anim) anim.style.display = 'none';
         if (actions) actions.style.display = 'flex';
-        modal.style.display = 'flex';
+        if (modal) {
+            modal.style.display = 'flex';
+        }
     }
 
     async executeDeleteInstance(instanceInfo) {

@@ -51,6 +51,34 @@
                 <!-- Se llena dinámicamente -->
             </div>
         </div>
+
+        <!-- Modal Confirmación Eliminación de Instancia Local -->
+        <div class="instance-delete-modal-overlay" id="instanceDeleteModal" style="display: none;">
+            <div class="instance-delete-modal-box">
+                <div class="instance-delete-modal-icon">
+                    <svg width="34" height="34" fill="none" viewBox="0 0 24 24" stroke="#ef4444">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                </div>
+                <h3 id="deleteModalTitle">¿Eliminar Instancia?</h3>
+                <p id="deleteModalDesc">¿Estás seguro de que deseas eliminar los archivos locales de <b>Bingo</b>? Esta acción liberará espacio en tu disco.</p>
+                
+                <div class="instance-delete-status-anim" id="deleteStatusAnim" style="display: none;">
+                    <div class="delete-spinner"></div>
+                    <span id="deleteStatusText">Eliminando instancia...</span>
+                </div>
+
+                <div class="instance-delete-modal-actions" id="deleteModalActions">
+                    <button class="btn-cancel-delete" id="btnCancelDeleteInstance">Cancelar</button>
+                    <button class="btn-confirm-delete" id="btnConfirmDeleteInstance">
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                        Eliminar
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="java-tab" class="container-settings content-scroll">
@@ -85,12 +113,11 @@
     </div>
 
     <div id="resolution-tab" class="container-settings">
-        <div class="titre-tab">Paramètres de resolution Minecraft</div>
+        <div class="titre-tab">Ajustes de Resolución de Minecraft</div>
         <div class="settings-elements-box">
             <div class="setting-text">
-                Définissez une résolution personnalisée afin d'avoir un jeu adapté à votre écran.<br>
-                Par défaut le jeu démarre en 854 X 480,<br>vous pouvez modifier cette valeur pour un confort de jeu
-                optimal. La résolution idéale est de 1280 X 720.
+                Define una resolución personalizada para adaptar la ventana del juego a tu monitor.<br>
+                Por defecto el juego inicia en 854 x 480.<br>Puedes modificar este valor para una mayor calidad y comodidad visual. La resolución recomendada es 1280 x 720 o 1920 x 1080.
             </div>
             <div class="settings-elements content-center">
                 <div class="input-size-element">
@@ -98,83 +125,50 @@
                     <div class="size-cross"></div>
                     <input type="number" class="height-size input-resolution">
                 </div>
-                <div class="size-reset size-btn">Par defaut</div>
+                <div class="size-reset size-btn">Por Defecto</div>
             </div>
         </div>
     </div>
 
     <div id="launcher-tab" class="container-settings content-scroll">
-        <div class="titre-tab">Paramètre de téléchargement</div>
+        <div class="titre-tab">Ajustes de Descarga Simultánea</div>
         <div class="settings-elements-box">
             <div class="setting-text">
-                Ce paramètre détermine le nombre maximum de fichiers pouvant être téléchargés simultanément lors de la
-                mise à jour ou du téléchargement de ressources.<br><br>
-
-                Veuillez noter que la modification de ce paramètre peut affecter les performances de
-                téléchargement.<br>
-                Il est recommandé de ne pas dépasser les limites recommandées par défaut,<br>
-                sauf si vous rencontrez des problèmes spécifiques de connectivité.
+                Este ajuste determina el número máximo de archivos que pueden descargarse al mismo tiempo durante la instalación o actualización de las instancias.<br><br>
+                Ten en cuenta que cambiar este parámetro puede afectar el rendimiento y velocidad de tu conexión.<br>
+                Se recomienda mantener los valores por defecto a menos que presentes problemas específicos de red.
             </div>
             <div class="settings-elements content-center">
                 <input type="number" class="max-files input-max-files">
-                <p>Fichiers</p>
-                <div class="max-files-reset max-files-btn">Par defaut</div>
+                <p>Archivos</p>
+                <div class="max-files-reset max-files-btn">Por Defecto</div>
             </div>
         </div>
 
-        <div class="titre-tab">Thème clair et sombre</div>
+        <div class="titre-tab">Tema Visual (Claro / Oscuro)</div>
         <div class="settings-elements-box">
             <div class="setting-text">
-                Choisissez entre le thème clair et le thème sombre pour personnaliser l'apparence du launcher.<br><br>
-
-                La modification du thème peut influencer la lisibilité et l'expérience visuelle.<br>
-                Sélectionnez celui qui vous convient le mieux en fonction de vos préférences.
+                Elige entre el tema claro, oscuro o automático para personalizar la apariencia de la interfaz del launcher.<br><br>
+                Selecciona la opción visual que te resulte más cómoda.
             </div>
             <div class="settings-elements content-center theme-box">
-                <div class="theme-btn theme-btn-clair">Clair</div>
-                <div class="theme-btn theme-btn-sombre">Sombre</div>
-                <div class="theme-btn theme-btn-auto">Automatique</div>
+                <div class="theme-btn theme-btn-clair">Claro</div>
+                <div class="theme-btn theme-btn-sombre">Oscuro</div>
+                <div class="theme-btn theme-btn-auto">Automático</div>
             </div>
         </div>
 
-        <div class="titre-tab">Comportement du launcher au démarrage</div>
+        <!-- <div class="titre-tab">Comportamiento del Launcher al Iniciar Juego</div>
         <div class="settings-elements-box">
             <div class="setting-text">
-                Vous pouvez choisir si le launcher se ferme automatiquement ou reste ouvert lorsque vous lancez le jeu.
+                Puedes elegir si el launcher se cierra automáticamente o permanece abierto cuando inicia Minecraft.
             </div>
 
             <div class="settings-elements content-evenly close-box">
-                <div class="close-launcher close-btn">Fermer le launcher après le démarrage du jeu</div>
-                <div class="close-none close-btn">Garder le launcher ouvert</div>
-                <div class="close-all close-btn">Fermer le jeu si le launcher est fermé</div>
+                <div class="close-launcher close-btn">Cerrar el launcher al iniciar el juego</div>
+                <div class="close-none close-btn">Mantener el launcher abierto</div>
+                <div class="close-all close-btn">Cerrar el juego si se cierra el launcher</div>
             </div>
-    </div>
-
-    <!-- Modal Confirmación Eliminación de Instancia Local -->
-    <div class="instance-delete-modal-overlay" id="instanceDeleteModal" style="display: none;">
-        <div class="instance-delete-modal-box">
-            <div class="instance-delete-modal-icon">
-                <svg width="34" height="34" fill="none" viewBox="0 0 24 24" stroke="#ef4444">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                </svg>
-            </div>
-            <h3 id="deleteModalTitle">¿Eliminar Instancia?</h3>
-            <p id="deleteModalDesc">¿Estás seguro de que deseas eliminar los archivos locales de <b>Bingo</b>? Esta acción liberará espacio en tu disco.</p>
-            
-            <div class="instance-delete-status-anim" id="deleteStatusAnim" style="display: none;">
-                <div class="delete-spinner"></div>
-                <span id="deleteStatusText">Eliminando instancia...</span>
-            </div>
-
-            <div class="instance-delete-modal-actions" id="deleteModalActions">
-                <button class="btn-cancel-delete" id="btnCancelDeleteInstance">Cancelar</button>
-                <button class="btn-confirm-delete" id="btnConfirmDeleteInstance">
-                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                    </svg>
-                    Eliminar
-                </button>
-            </div>
-        </div>
+        </div> -->
     </div>
 </div>
