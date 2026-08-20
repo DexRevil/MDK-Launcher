@@ -15,6 +15,63 @@ import popup from './utils/popup.js';
 import { skin2D } from './utils/skin.js';
 import slider from './utils/slider.js';
 
+const instanceBgCache = new Map();
+
+async function checkImageExists(url) {
+    if (instanceBgCache.has(url)) return instanceBgCache.get(url);
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            instanceBgCache.set(url, true);
+            resolve(true);
+        };
+        img.onerror = () => {
+            instanceBgCache.set(url, false);
+            resolve(false);
+        };
+        img.src = url;
+    });
+}
+
+async function setInstanceBackground(instanceName, theme) {
+    if (!instanceName) {
+        return await setBackground(theme);
+    }
+
+    if (typeof theme == 'undefined') {
+        let databaseLauncher = new database();
+        let configClient = await databaseLauncher.readData('configClient');
+        theme = configClient?.launcher_config?.theme || "auto";
+        theme = await ipcRenderer.invoke('is-dark-theme', theme).then(res => res);
+    }
+
+    let body = document.body;
+    body.className = theme ? 'dark global' : 'light global';
+
+    let serverUrl = pkg.user ? `${pkg.url}/${pkg.user}` : pkg.url;
+    let extensions = ['png', 'jpg', 'jpeg', 'webp'];
+    let foundBg = null;
+
+    for (let ext of extensions) {
+        let bgUrl = `${serverUrl}/files/backgrounds/${encodeURIComponent(instanceName)}.${ext}`;
+        if (await checkImageExists(bgUrl)) {
+            foundBg = bgUrl;
+            break;
+        }
+    }
+
+    if (foundBg) {
+        body.style.backgroundImage = `linear-gradient(#00000080, #00000080), url("${foundBg}")`;
+        body.style.backgroundSize = 'cover';
+        body.style.backgroundPosition = 'center';
+        body.style.backgroundRepeat = 'no-repeat';
+        return;
+    }
+
+    // Si no tiene imagen en el servidor, usamos las imágenes por defecto del tema
+    await setBackground(theme);
+}
+
 async function setBackground(theme) {
     if (typeof theme == 'undefined') {
         let databaseLauncher = new database();
@@ -214,6 +271,7 @@ export {
     logger as logger,
     popup as popup,
     setBackground as setBackground,
+    setInstanceBackground as setInstanceBackground,
     skin2D as skin2D,
     addAccount as addAccount,
     accountSelect as accountSelect,

@@ -1,7 +1,7 @@
 /**
  * @author ElFo2Ks
  */
-import { config, database, logger, changePanel, appdata, setStatus, pkg, popup } from '../utils.js'
+import { config, database, logger, changePanel, appdata, setStatus, pkg, popup, setInstanceBackground } from '../utils.js'
 
 const { Launch } = require('minecraft-java-core')
 const { shell, ipcRenderer } = require('electron')
@@ -77,10 +77,22 @@ class Home {
         }
     }
 
-    updateRatingUI(instanceName) {
-        if (!instanceName) return;
-
+    async updateRatingUI(instanceName) {
         let ratingCard = document.getElementById('instance-rating-card');
+        if (!instanceName || !ratingCard) {
+            if (ratingCard) ratingCard.style.display = 'none';
+            return;
+        }
+
+        let instancesList = await config.getInstanceList();
+        let instance = instancesList.find(i => i.name === instanceName);
+
+        // Si la instancia tiene ratingActive: false en el servidor, ocultar completamente las estrellas
+        if (instance && instance.ratingActive === false) {
+            ratingCard.style.display = 'none';
+            return;
+        }
+
         let scoreText = document.getElementById('main-rating-score');
         let votesCount = document.getElementById('main-rating-count');
         let userBadge = document.getElementById('main-rating-user-badge');
@@ -111,9 +123,7 @@ class Home {
             userBadge.style.display = 'none';
         }
 
-        if (ratingCard) {
-            ratingCard.style.display = 'flex';
-        }
+        ratingCard.style.display = 'flex';
     }
 
     setupRatingListeners() {
@@ -279,17 +289,22 @@ class Home {
                 instancesListPopup.innerHTML = '';
                 for (let instance of instancesList) {
                     if (!instance) continue;
-                    let rData = this.ratingsCache[instance.name] || { average: 5.0, total_votes: 0 };
-                    let ratingScore = (typeof rData.average === 'number' ? rData.average : 5.0).toFixed(1);
-                    let ratingVotes = typeof rData.total_votes === 'number' ? rData.total_votes : 0;
+                    let isRatingActive = instance.ratingActive !== false;
+                    let ratingBadgeHtml = '';
 
-                    let ratingBadgeHtml = `
-                        <div class="instance-rating-pill">
-                            <span class="pill-star">★</span>
-                            <span class="pill-score">${ratingScore}</span>
-                            <span class="pill-votes">(${ratingVotes})</span>
-                        </div>
-                    `;
+                    if (isRatingActive) {
+                        let rData = this.ratingsCache[instance.name] || { average: 5.0, total_votes: 0 };
+                        let ratingScore = (typeof rData.average === 'number' ? rData.average : 5.0).toFixed(1);
+                        let ratingVotes = typeof rData.total_votes === 'number' ? rData.total_votes : 0;
+
+                        ratingBadgeHtml = `
+                            <div class="instance-rating-pill">
+                                <span class="pill-star">★</span>
+                                <span class="pill-score">${ratingScore}</span>
+                                <span class="pill-votes">(${ratingVotes})</span>
+                            </div>
+                        `;
+                    }
 
                     let isAllowed = true;
                     if (instance.whitelistActive) {
@@ -297,13 +312,14 @@ class Home {
                     }
 
                     if (isAllowed) {
+                        let rScore = (this.ratingsCache[instance.name]?.average || 5.0).toFixed(1);
                         instancesListPopup.innerHTML += `
                             <div class="tooltip-container">
                                 <div id="${instance.name}" class="instance-elements${instance.name === configClient.instance_selct ? ' active-instance' : ''}">
                                     <span class="instance-element-name">${instance.name}</span>
                                     ${ratingBadgeHtml}
                                 </div>
-                                <span class="tooltip-text">Seleccionar ${instance.name} (★ ${ratingScore})</span>
+                                <span class="tooltip-text">Seleccionar ${instance.name}${isRatingActive ? ` (★ ${rScore})` : ''}</span>
                             </div>`;
                     }
                 }
@@ -334,7 +350,8 @@ class Home {
                 if (options) {
                     await setStatus(options.status, options.name);
                 }
-                this.updateRatingUI(newInstanceSelect);
+                await setInstanceBackground(newInstanceSelect);
+                await this.updateRatingUI(newInstanceSelect);
             }
         });
 
@@ -368,9 +385,10 @@ class Home {
             }
         }
 
-        // Actualizar clasificación de la instancia activa
+        // Actualizar fondo y clasificación de la instancia activa
         if (instanceSelect) {
-            this.updateRatingUI(instanceSelect);
+            await setInstanceBackground(instanceSelect);
+            await this.updateRatingUI(instanceSelect);
         }
 
         // Sidebar instancias visibles con iconos
@@ -390,23 +408,26 @@ class Home {
                         instanceSelect = newInstanceSelect.name;
                         await this.db.updateData('configClient', configClient);
                         setStatus(newInstanceSelect.status, newInstanceSelect.name);
-                        this.updateRatingUI(newInstanceSelect.name);
+                        await setInstanceBackground(newInstanceSelect.name);
+                        await this.updateRatingUI(newInstanceSelect.name);
                     }
                 }
             } else {
                 if (instance.name == instanceSelect) {
                     setStatus(instance.status, instance.name);
-                    this.updateRatingUI(instance.name);
+                    await setInstanceBackground(instance.name);
+                    await this.updateRatingUI(instance.name);
                 }
             }
 
+            let isRatingActive = instance.ratingActive !== false;
             let rData = this.ratingsCache[instance.name] || { average: 5.0, total_votes: 0 };
             let ratingScore = (typeof rData.average === 'number' ? rData.average : 5.0).toFixed(1);
 
             let instanceDiv = document.createElement('div');
             instanceDiv.id = instance.name;
             instanceDiv.className = `instance-main-item${instance.name === instanceSelect ? ' active-instance' : ''}`;
-            instanceDiv.title = `${instance.name} (★ ${ratingScore})`;
+            instanceDiv.title = isRatingActive ? `${instance.name} (★ ${ratingScore})` : instance.name;
 
             // Crear imagen
             let img = document.createElement('img');
@@ -426,7 +447,8 @@ class Home {
                 instanceDiv.classList.add('active-instance');
 
                 setStatus(instance.status, instance.name);
-                this.updateRatingUI(instance.name);
+                await setInstanceBackground(instance.name);
+                await this.updateRatingUI(instance.name);
             });
 
             instancesVisibleList.appendChild(instanceDiv);
