@@ -3,7 +3,9 @@
         <p>AJUSTES</p>
         <div class="nav-box">
             <div id="account" class="nav-settings-btn active-settings-BTN">CUENTAS</div>
+            <div id="instances" class="nav-settings-btn">INSTANCIAS</div>
             <div id="java" class="nav-settings-btn">JAVA</div>
+            <div id="launcher" class="nav-settings-btn">LAUNCHER</div>
             <div id="save" class="nav-settings-btn">MENU</div>
         </div>
     </div>
@@ -23,6 +25,30 @@
                     <div class="icon-account-add"></div>
                 </div>
                 <div class="add-text-profile">Agregar Cuenta.</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="instances-tab" class="container-settings content-scroll">
+        <div class="titre-tab">Gestión de Instancias Instaladas</div>
+        <div class="settings-elements-box">
+            <div class="setting-text">
+                Administra los archivos descargados de cada instancia en tu computadora. Puedes verificar qué instancias tienes instaladas y eliminar sus carpetas locales con el botón de papelera para liberar espacio o reiniciar la instalación.<br><br>
+                <span style="color: #fbbf24; font-size: 0.85rem;">💡 <b>Nota:</b> Solo se eliminan los archivos locales en tu PC. No afecta tu cuenta ni la configuración en el servidor.</span>
+            </div>
+        </div>
+        <div class="instances-settings-wrapper">
+            <div class="instances-settings-top">
+                <div class="instances-count-label">Instancias encontradas: <span id="instances-count-num">0</span></div>
+                <div class="btn-refresh-instances" id="btn-refresh-instances">
+                    <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    Actualizar
+                </div>
+            </div>
+            <div class="instances-client-list" id="instances-client-list">
+                <!-- Se llena dinámicamente -->
             </div>
         </div>
     </div>
@@ -122,18 +148,33 @@
                 <div class="close-none close-btn">Garder le launcher ouvert</div>
                 <div class="close-all close-btn">Fermer le jeu si le launcher est fermé</div>
             </div>
+    </div>
+
+    <!-- Modal Confirmación Eliminación de Instancia Local -->
+    <div class="instance-delete-modal-overlay" id="instanceDeleteModal" style="display: none;">
+        <div class="instance-delete-modal-box">
+            <div class="instance-delete-modal-icon">
+                <svg width="34" height="34" fill="none" viewBox="0 0 24 24" stroke="#ef4444">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+            </div>
+            <h3 id="deleteModalTitle">¿Eliminar Instancia?</h3>
+            <p id="deleteModalDesc">¿Estás seguro de que deseas eliminar los archivos locales de <b>Bingo</b>? Esta acción liberará espacio en tu disco.</p>
+            
+            <div class="instance-delete-status-anim" id="deleteStatusAnim" style="display: none;">
+                <div class="delete-spinner"></div>
+                <span id="deleteStatusText">Eliminando instancia...</span>
+            </div>
+
+            <div class="instance-delete-modal-actions" id="deleteModalActions">
+                <button class="btn-cancel-delete" id="btnCancelDeleteInstance">Cancelar</button>
+                <button class="btn-confirm-delete" id="btnConfirmDeleteInstance">
+                    <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                    Eliminar
+                </button>
+            </div>
         </div>
-
-        <!-- <div class="titre-tab">Environnement INTEL</div>
-        <div class="settings-elements-box">
-            <div class="setting-text">
-                pour les jouer avec les proseceurs apple silicon 
-            </div>
-
-            <div class="settings-elements content-evenly close-box">
-                <div class="close-launcher close-btn">Environnement INTEL</div>
-                <div class="close-none close-btn">Environnement SILICON</div>
-            </div>
-        </div> -->
     </div>
 </div>

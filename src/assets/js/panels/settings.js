@@ -3,9 +3,11 @@
  * @license CC-BY-NC 4.0 - https://creativecommons.org/licenses/by-nc/4.0
  */
 
-import { changePanel, accountSelect, database, Slider, config, setStatus, popup, appdata, setBackground } from '../utils.js'
-const { ipcRenderer } = require('electron');
+import { changePanel, accountSelect, database, Slider, config, setStatus, popup, appdata, setBackground, pkg } from '../utils.js'
+const { ipcRenderer, shell } = require('electron');
 const os = require('os');
+const fs = require('fs');
+const path = require('path');
 
 class Settings {
     static id = "settings";
@@ -14,6 +16,7 @@ class Settings {
         this.db = new database();
         this.navBTN()
         this.accounts()
+        this.instancesManagement()
         this.ram()
         this.javaPath()
         this.resolution()
@@ -41,7 +44,12 @@ class Settings {
                 e.target.classList.add('active-settings-BTN');
 
                 if (activeContainerSettings) activeContainerSettings.classList.toggle('active-container-settings');
-                document.querySelector(`#${id}-tab`).classList.add('active-container-settings');
+                let targetTab = document.querySelector(`#${id}-tab`);
+                if (targetTab) targetTab.classList.add('active-container-settings');
+
+                if (id === 'instances') {
+                    this.loadInstancesClientList();
+                }
             }
         })
     }
@@ -334,6 +342,298 @@ class Settings {
                 }
             }
         })
+    }
+
+    async instancesManagement() {
+        const refreshBtn = document.getElementById('btn-refresh-instances');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                this.loadInstancesClientList();
+            });
+        }
+
+        const modal = document.getElementById('instanceDeleteModal');
+        const cancelBtn = document.getElementById('btnCancelDeleteInstance');
+        const confirmBtn = document.getElementById('btnConfirmDeleteInstance');
+
+        if (cancelBtn && modal) {
+            cancelBtn.addEventListener('click', () => {
+                modal.style.display = 'none';
+                this.instanceToDelete = null;
+            });
+        }
+
+        if (confirmBtn && modal) {
+            confirmBtn.addEventListener('click', async () => {
+                if (!this.instanceToDelete) return;
+                await this.executeDeleteInstance(this.instanceToDelete);
+            });
+        }
+
+        await this.loadInstancesClientList();
+    }
+
+    async getLocalInstancePath(instanceName) {
+        let appDataPath = await appdata();
+        let dataDir = this.config?.dataDirectory || pkg?.dataDirectory || 'mdklauncher/launcher/data';
+        let folderName = process.platform === 'darwin' ? dataDir : `.${dataDir}`;
+        return path.join(appDataPath, folderName, 'instances', instanceName);
+    }
+
+    calculateFolderSize(dirPath) {
+        if (!fs.existsSync(dirPath)) return 0;
+        let totalSize = 0;
+        try {
+            const files = fs.readdirSync(dirPath, { withFileTypes: true });
+            for (const file of files) {
+                const filePath = path.join(dirPath, file.name);
+                if (file.isDirectory()) {
+                    totalSize += this.calculateFolderSize(filePath);
+                } else if (file.isFile()) {
+                    const stat = fs.statSync(filePath);
+                    totalSize += stat.size;
+                }
+            }
+        } catch (e) {
+            // Error ignorado
+        }
+        return totalSize;
+    }
+
+    formatBytes(bytes) {
+        if (!bytes || bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    async loadInstancesClientList() {
+        const listContainer = document.getElementById('instances-client-list');
+        const countSpan = document.getElementById('instances-count-num');
+        if (!listContainer) return;
+
+        listContainer.innerHTML = '<div style="text-align:center; padding: 2rem; color: #a1a1aa;">Cargando lista de instancias...</div>';
+
+        let appDataPath = await appdata();
+        let dataDir = this.config?.dataDirectory || pkg?.dataDirectory || 'mdklauncher/launcher/data';
+        let folderName = process.platform === 'darwin' ? dataDir : `.${dataDir}`;
+        let instancesRoot = path.join(appDataPath, folderName, 'instances');
+
+        // 1. Obtener carpetas locales reales en el disco
+        let localFolders = [];
+        if (fs.existsSync(instancesRoot)) {
+            try {
+                localFolders = fs.readdirSync(instancesRoot, { withFileTypes: true })
+                    .filter(d => d.isDirectory())
+                    .map(d => d.name);
+            } catch (e) {
+                console.warn('Error al leer directorio de instancias:', e);
+            }
+        }
+
+        // 2. Obtener cuenta actual y lista de instancias del servidor
+        let configClient = await this.db.readData('configClient');
+        let auth = await this.db.readData('accounts', configClient?.account_selected);
+
+        let serverInstances = [];
+        try {
+            serverInstances = await config.getInstanceList() || [];
+        } catch (e) {
+            serverInstances = [];
+        }
+
+        let combinedInstances = [];
+        let processedNames = new Set();
+
+        // 3. Añadir solo las instancias disponibles en el servidor donde el usuario tenga acceso (Whitelist)
+        for (let sInst of serverInstances) {
+            if (!sInst) continue;
+
+            // Verificar si tiene whitelist activa y si el usuario está agregado
+            if (sInst.whitelistActive) {
+                let isAllowed = sInst.whitelist && sInst.whitelist.some(w => w.toLowerCase() === auth?.name?.toLowerCase());
+                if (!isAllowed) {
+                    // Si el usuario no está en la lista de la instancia, NO aparece
+                    continue;
+                }
+            }
+
+            let instPath = path.join(instancesRoot, sInst.name);
+            let isInstalled = fs.existsSync(instPath);
+            let size = isInstalled ? this.calculateFolderSize(instPath) : 0;
+
+            combinedInstances.push({
+                name: sInst.name,
+                isServer: true,
+                isInstalled: isInstalled,
+                version: sInst.loadder?.minecraft_version || '1.20.1',
+                loader: sInst.loadder?.loadder_type || 'vanilla',
+                path: instPath,
+                size: size,
+                formattedSize: isInstalled ? this.formatBytes(size) : ''
+            });
+            processedNames.add(sInst.name.toLowerCase());
+        }
+
+        // 4. Si hay carpetas locales en el disco de instancias antiguas/eliminadas, mostrarlas para poder borrarlas
+        for (let folder of localFolders) {
+            if (!processedNames.has(folder.toLowerCase())) {
+                let serverMatch = serverInstances.find(s => s.name.toLowerCase() === folder.toLowerCase());
+                // Si es una instancia de servidor donde el usuario no tiene acceso, no mostrarla si no está instalada
+                if (serverMatch && serverMatch.whitelistActive) {
+                    let isAllowed = serverMatch.whitelist && serverMatch.whitelist.some(w => w.toLowerCase() === auth?.name?.toLowerCase());
+                    if (!isAllowed) continue;
+                }
+
+                let instPath = path.join(instancesRoot, folder);
+                let size = this.calculateFolderSize(instPath);
+                combinedInstances.push({
+                    name: folder,
+                    isServer: false,
+                    isInstalled: true,
+                    version: 'Archivos locales',
+                    loader: 'Personalizado',
+                    path: instPath,
+                    size: size,
+                    formattedSize: this.formatBytes(size)
+                });
+            }
+        }
+
+        if (countSpan) countSpan.textContent = combinedInstances.length;
+
+        if (combinedInstances.length === 0) {
+            listContainer.innerHTML = `
+                <div style="text-align:center; padding: 3rem 1.5rem; color: #94a3b8; background: rgba(255,255,255,0.02); border-radius: 14px; border: 1px dashed rgba(255,255,255,0.1);">
+                    <div style="font-size: 2.2rem; margin-bottom: 0.6rem;">🛡️</div>
+                    <b style="color: #f8fafc; font-size: 1.05rem; display: block;">No tienes instancias disponibles</b>
+                    <p style="font-size: 0.85rem; margin-top: 0.4rem; color: #a1a1aa; line-height: 1.4;">
+                        No tienes ninguna instancia descargada en tu PC ni estás agregado a la lista de acceso (Whitelist) del servidor.
+                    </p>
+                </div>
+            `;
+            return;
+        }
+
+        listContainer.innerHTML = '';
+
+        for (let inst of combinedInstances) {
+            let serverUrl = pkg.user ? `${pkg.url}/${pkg.user}` : pkg.url;
+            let logoUrl = `${serverUrl}/files/logoins/${encodeURIComponent(inst.name)}.png`;
+
+            let card = document.createElement('div');
+            card.className = 'instance-client-card';
+            card.id = `inst-card-${inst.name}`;
+            card.innerHTML = `
+                <div class="instance-client-left">
+                    <img class="instance-client-avatar" src="${logoUrl}" alt="${inst.name}" onerror="this.src='./assets/images/icon.png'">
+                    <div class="instance-client-details">
+                        <div class="instance-client-title-row">
+                            <span class="instance-client-name">${inst.name}</span>
+                            ${inst.isInstalled 
+                                ? `<span class="instance-client-badge badge-installed">🟢 Instalada (${inst.formattedSize})</span>`
+                                : `<span class="instance-client-badge badge-not-installed">⚪ No descargada</span>`
+                            }
+                            ${!inst.isServer ? `<span class="instance-client-badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">⚠️ Evento / Antigua</span>` : ''}
+                        </div>
+                        <span class="instance-client-subtext">Minecraft ${inst.version} · Loader: ${inst.loader.toUpperCase()}</span>
+                    </div>
+                </div>
+                <div class="instance-client-actions">
+                    <button class="btn-delete-instance-trash ${inst.isInstalled ? '' : 'disabled'}" title="${inst.isInstalled ? 'Eliminar archivos de la instancia de tu PC' : 'Esta instancia aún no está descargada'}" data-instance="${inst.name}" ${inst.isInstalled ? '' : 'disabled'}>
+                        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                        Eliminar
+                    </button>
+                </div>
+            `;
+
+            // Evento botón eliminar
+            let deleteBtn = card.querySelector('.btn-delete-instance-trash');
+            if (deleteBtn && inst.isInstalled) {
+                deleteBtn.addEventListener('click', () => {
+                    this.promptDeleteInstance(inst.name, inst.path, inst.formattedSize);
+                });
+            }
+
+            listContainer.appendChild(card);
+        }
+    }
+
+    promptDeleteInstance(instanceName, instancePath, formattedSize) {
+        const modal = document.getElementById('instanceDeleteModal');
+        const title = document.getElementById('deleteModalTitle');
+        const desc = document.getElementById('deleteModalDesc');
+        const anim = document.getElementById('deleteStatusAnim');
+        const actions = document.getElementById('deleteModalActions');
+
+        if (!modal) return;
+
+        this.instanceToDelete = { name: instanceName, path: instancePath };
+
+        title.textContent = `¿Eliminar Instancia "${instanceName}"?`;
+        desc.innerHTML = `Se eliminarán todos los archivos locales descargados de <b>${instanceName}</b> (~${formattedSize}).<br><br><small style="color:#94a3b8;">La próxima vez que juegues, el launcher volverá a descargar la instancia si lo deseas.</small>`;
+        
+        if (anim) anim.style.display = 'none';
+        if (actions) actions.style.display = 'flex';
+        modal.style.display = 'flex';
+    }
+
+    async executeDeleteInstance(instanceInfo) {
+        const modal = document.getElementById('instanceDeleteModal');
+        const anim = document.getElementById('deleteStatusAnim');
+        const statusText = document.getElementById('deleteStatusText');
+        const actions = document.getElementById('deleteModalActions');
+
+        if (anim) anim.style.display = 'flex';
+        if (actions) actions.style.display = 'none';
+        if (statusText) statusText.textContent = `Eliminando archivos de "${instanceInfo.name}"...`;
+
+        try {
+            await new Promise(r => setTimeout(r, 600));
+
+            if (fs.existsSync(instanceInfo.path)) {
+                fs.rmSync(instanceInfo.path, { recursive: true, force: true });
+            }
+
+            // Verificar si la instancia se eliminó
+            let isDeleted = !fs.existsSync(instanceInfo.path);
+
+            if (isDeleted) {
+                if (statusText) statusText.textContent = `¡Instancia "${instanceInfo.name}" eliminada con éxito!`;
+                await new Promise(r => setTimeout(r, 800));
+
+                modal.style.display = 'none';
+                this.instanceToDelete = null;
+
+                let popupSuccess = new popup();
+                popupSuccess.openPopup({
+                    title: 'Instancia Eliminada',
+                    content: `Se eliminaron correctamente los archivos de la instancia <b>${instanceInfo.name}</b> de tu computadora.`,
+                    color: '#34d399',
+                    options: true
+                });
+
+                await this.loadInstancesClientList();
+            } else {
+                throw new Error('Algunos archivos pueden estar en uso por el juego. Cierra Minecraft e inténtalo de nuevo.');
+            }
+        } catch (err) {
+            console.error('Error al eliminar instancia:', err);
+            modal.style.display = 'none';
+            this.instanceToDelete = null;
+
+            let popupErr = new popup();
+            popupErr.openPopup({
+                title: 'Error al Eliminar',
+                content: `No se pudo eliminar la carpeta: ${err.message || err}`,
+                color: '#ef4444',
+                options: true
+            });
+            await this.loadInstancesClientList();
+        }
     }
 }
 export default Settings;

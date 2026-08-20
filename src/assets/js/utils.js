@@ -17,20 +17,34 @@ import slider from './utils/slider.js';
 
 const instanceBgCache = new Map();
 
-async function checkImageExists(url) {
-    if (instanceBgCache.has(url)) return instanceBgCache.get(url);
-    return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-            instanceBgCache.set(url, true);
-            resolve(true);
-        };
-        img.onerror = () => {
-            instanceBgCache.set(url, false);
-            resolve(false);
-        };
-        img.src = url;
-    });
+async function checkInstanceBackground(instanceName) {
+    if (instanceBgCache.has(instanceName)) return instanceBgCache.get(instanceName);
+
+    let serverUrl = pkg.user ? `${pkg.url}/${pkg.user}` : pkg.url;
+    try {
+        let apiUrl = `${serverUrl}/files/admin/api.php?action=get_instance_background&instance=${encodeURIComponent(instanceName)}`;
+        let res = await fetch(apiUrl);
+        let data = await res.json();
+
+        if (data && data.status === 'success' && data.has_background) {
+            let bgUrl = `${serverUrl}/files/backgrounds/${encodeURIComponent(instanceName)}.png`;
+            if (data.url) {
+                let match = data.url.match(/\.([a-zA-Z0-9]+)(\?|$)/);
+                let ext = match ? match[1] : 'png';
+                bgUrl = `${serverUrl}/files/backgrounds/${encodeURIComponent(instanceName)}.${ext}`;
+            }
+            instanceBgCache.set(instanceName, bgUrl);
+            return bgUrl;
+        } else {
+            console.warn(`[Background] Advertencia: La instancia "${instanceName}" no tiene fondo personalizado en el servidor. Usando fondo por defecto.`);
+            instanceBgCache.set(instanceName, null);
+            return null;
+        }
+    } catch (err) {
+        console.warn(`[Background] Advertencia: No se pudo verificar fondo para "${instanceName}". Usando fondo por defecto.`);
+        instanceBgCache.set(instanceName, null);
+        return null;
+    }
 }
 
 async function setInstanceBackground(instanceName, theme) {
@@ -48,17 +62,7 @@ async function setInstanceBackground(instanceName, theme) {
     let body = document.body;
     body.className = theme ? 'dark global' : 'light global';
 
-    let serverUrl = pkg.user ? `${pkg.url}/${pkg.user}` : pkg.url;
-    let extensions = ['png', 'jpg', 'jpeg', 'webp'];
-    let foundBg = null;
-
-    for (let ext of extensions) {
-        let bgUrl = `${serverUrl}/files/backgrounds/${encodeURIComponent(instanceName)}.${ext}`;
-        if (await checkImageExists(bgUrl)) {
-            foundBg = bgUrl;
-            break;
-        }
-    }
+    let foundBg = await checkInstanceBackground(instanceName);
 
     if (foundBg) {
         body.style.backgroundImage = `linear-gradient(#00000080, #00000080), url("${foundBg}")`;
