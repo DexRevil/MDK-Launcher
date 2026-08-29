@@ -5,6 +5,8 @@ import { config, database, logger, changePanel, appdata, setStatus, pkg, popup, 
 
 const { Launch } = require('minecraft-java-core')
 const { shell, ipcRenderer } = require('electron')
+const fs = require('fs')
+const path = require('path')
 
 class Home {
     static id = "home";
@@ -500,11 +502,25 @@ class Home {
         let infoStarting = document.querySelector(".info-starting-game-text")
         let progressBar = document.querySelector('.progress-bar')
 
+        playInstanceBTN.style.display = "none"
+        infoStartingBOX.style.display = "block"
+        progressBar.style.display = "";
+        infoStarting.innerHTML = `Sincronizando archivos con el servidor...`
+        ipcRenderer.send('main-window-progress-load')
+
+        let appDataPath = await appdata();
+        let dataDir = this.config.dataDirectory || 'mdklauncher/launcher/data';
+        let folderName = process.platform === 'darwin' ? dataDir : `.${dataDir}`;
+        let localInstancePath = path.join(appDataPath, folderName, 'instances', options.name);
+
+        // Limpieza automática de archivos obsoletos que fueron eliminados en el servidor
+        await this.cleanObsoleteInstanceFiles(localInstancePath, options.url, options.ignored);
+
         let opt = {
             url: options.url,
             authenticator: authenticator,
             timeout: 10000,
-            path: `${await appdata()}/${process.platform == 'darwin' ? this.config.dataDirectory : `.${this.config.dataDirectory}`}`,
+            path: `${appDataPath}/${process.platform == 'darwin' ? dataDir : `.${dataDir}`}`,
             instance: options.name,
             version: options.loadder.minecraft_version,
             detached: configClient.launcher_config.closeLauncher == "close-all" ? false : true,
@@ -545,11 +561,6 @@ class Home {
             accountType: authenticator?.meta?.type,
             isPremium: !(authenticator?.meta?.type === 'Mojang' && authenticator?.meta?.online === false)
         });
-
-        playInstanceBTN.style.display = "none"
-        infoStartingBOX.style.display = "block"
-        progressBar.style.display = "";
-        ipcRenderer.send('main-window-progress-load')
 
         launch.on('extract', extract => {
             ipcRenderer.send('main-window-progress-load')
@@ -647,6 +658,150 @@ class Home {
             new logger(pkg.name, '#7289da');
             console.log(err);
         });
+    }
+
+    async cleanObsoleteInstanceFiles(instancePath, serverUrl, ignoredList = []) {
+        if (!fs.existsSync(instancePath)) return;
+        if (!serverUrl) return;
+
+        try {
+            console.log(`[CleanSync] Sincronizando y verificando archivos obsoletos para: ${instancePath}`);
+            const fetchFn = typeof fetch !== 'undefined' ? fetch : require('node-fetch');
+            const response = await fetchFn(serverUrl, { timeout: 10000 });
+            if (!response.ok) {
+                console.warn(`[CleanSync] No se pudo obtener la lista de archivos del servidor (HTTP ${response.status}). Se omite la limpieza.`);
+                return;
+            }
+
+            const serverData = await response.json();
+            if (!Array.isArray(serverData)) {
+                console.warn('[CleanSync] Respuesta del servidor no válida para la instancia. Se omite la limpieza.');
+                return;
+            }
+
+            // Conjunto de archivos válidos en el servidor (normalizados a minúsculas y /)
+            const serverFilesSet = new Set(
+                serverData
+                    .filter(item => item && item.path)
+                    .map(item => item.path.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase())
+            );
+
+            // Lista de carpetas y archivos locales que NUNCA deben borrarse (archivos del usuario del juego)
+            const defaultProtected = [
+                'saves',
+                'screenshots',
+                'logs',
+                'crash-reports',
+                'options.txt',
+                'optionsof.txt',
+                'servers.dat',
+                'usercache.json',
+                'usernamecache.json',
+                'command_history.txt',
+                'hotbar.nbt',
+                'realms_persistence.json',
+                'natives',
+                '.fabric',
+                '.mixin.out'
+            ];
+
+            const allIgnored = [...(ignoredList || []), ...defaultProtected];
+
+            const isIgnored = (relPath) => {
+                const norm = relPath.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+                const parts = norm.split('/');
+
+                for (let item of allIgnored) {
+                    if (!item) continue;
+                    let ignoredNorm = item.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/+$/, '').toLowerCase();
+                    
+                    // Coincidencia exacta
+                    if (norm === ignoredNorm) return true;
+                    // Coincidencia de prefijo de carpeta (ej: saves/world1/level.dat)
+                    if (norm.startsWith(ignoredNorm + '/')) return true;
+                    // Coincidencia de cualquier segmento
+                    if (parts.includes(ignoredNorm)) return true;
+                }
+                return false;
+            };
+
+            // Escaneo recursivo de archivos locales en la instancia
+            const scanDirectory = (dir) => {
+                let results = [];
+                try {
+                    const list = fs.readdirSync(dir, { withFileTypes: true });
+                    for (const entry of list) {
+                        const fullPath = path.join(dir, entry.name);
+                        const relPath = path.relative(instancePath, fullPath).replace(/\\/g, '/');
+
+                        if (isIgnored(relPath)) {
+                            // Ignorar esta carpeta o archivo
+                            continue;
+                        }
+
+                        if (entry.isDirectory()) {
+                            results.push(...scanDirectory(fullPath));
+                        } else if (entry.isFile()) {
+                            results.push({ fullPath, relPath });
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`[CleanSync] Error al escanear directorio ${dir}:`, e.message || e);
+                }
+                return results;
+            };
+
+            const localFiles = scanDirectory(instancePath);
+            let deletedCount = 0;
+
+            for (const file of localFiles) {
+                const normRel = file.relPath.toLowerCase();
+                if (!serverFilesSet.has(normRel)) {
+                    try {
+                        fs.unlinkSync(file.fullPath);
+                        console.log(`[CleanSync] 🗑️ Archivo obsoleto eliminado: ${file.relPath}`);
+                        deletedCount++;
+                    } catch (e) {
+                        console.warn(`[CleanSync] Error al eliminar archivo obsoleto ${file.relPath}:`, e.message || e);
+                    }
+                }
+            }
+
+            // Eliminar carpetas vacías sobrantes (bottom-up)
+            const removeEmptyDirs = (dir) => {
+                try {
+                    const entries = fs.readdirSync(dir, { withFileTypes: true });
+                    for (const entry of entries) {
+                        if (entry.isDirectory()) {
+                            const fullSub = path.join(dir, entry.name);
+                            const relSub = path.relative(instancePath, fullSub).replace(/\\/g, '/');
+                            if (!isIgnored(relSub)) {
+                                removeEmptyDirs(fullSub);
+                            }
+                        }
+                    }
+                    if (dir !== instancePath) {
+                        const remaining = fs.readdirSync(dir);
+                        if (remaining.length === 0) {
+                            fs.rmdirSync(dir);
+                            console.log(`[CleanSync] 📁 Carpeta vacía eliminada: ${path.relative(instancePath, dir)}`);
+                        }
+                    }
+                } catch (e) {
+                    // Ignorar errores al limpiar carpetas vacías
+                }
+            };
+
+            removeEmptyDirs(instancePath);
+
+            if (deletedCount > 0) {
+                console.log(`[CleanSync] ✅ Sincronización limpia completada: ${deletedCount} archivo(s) obsoleto(s) eliminado(s).`);
+            } else {
+                console.log(`[CleanSync] ✅ Todos los archivos locales están sincronizados con el servidor.`);
+            }
+        } catch (err) {
+            console.error('[CleanSync] Error durante la sincronización limpia de la instancia:', err);
+        }
     }
 
     getdate(e) {

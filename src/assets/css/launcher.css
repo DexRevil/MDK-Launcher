@@ -156,28 +156,35 @@ input::-webkit-inner-spin-button {
 
 /* Popups */
 .popup {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    z-index: 50;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 5000;
     display: none;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.65);
     backdrop-filter: var(--glass-blur);
     -webkit-backdrop-filter: var(--glass-blur);
+    padding: 1.5rem;
+    box-sizing: border-box;
     animation: fadeIn 0.3s ease forwards;
 }
 
 .popup-tab {
-    width: 45%;
+    width: min(90vw, 480px);
+    max-height: 85vh;
+    overflow-y: auto;
     padding: 2rem;
     background: var(--background-element);
     border: 1px solid var(--glass-border);
     border-radius: 16px;
-    z-index: 51;
+    z-index: 5001;
     box-shadow: var(--shadow-intense);
+    box-sizing: border-box;
     opacity: 0;
     transform: translateY(20px) scale(0.95);
     animation: popupScaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;

@@ -643,10 +643,12 @@
     background: rgba(0, 0, 0, 0.75);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    display: flex;
+    display: none;
     justify-content: center;
     align-items: center;
-    z-index: 9999;
+    z-index: 99999;
+    padding: 1.5rem;
+    box-sizing: border-box;
     animation: fadeIn 0.2s ease;
 }
 
@@ -655,11 +657,15 @@
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 18px;
     padding: 2rem;
-    max-width: 440px;
-    width: 90%;
+    max-width: 460px;
+    width: min(90vw, 460px);
+    max-height: 88vh;
+    overflow-y: auto;
+    box-sizing: border-box;
     text-align: center;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.05);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.06);
     animation: scaleIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    margin: auto;
 }
 
 .instance-delete-modal-icon {
