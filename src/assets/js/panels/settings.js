@@ -253,21 +253,21 @@ class Settings {
     async launcher() {
         let configClient = await this.db.readData('configClient');
 
-        let maxDownloadFiles = configClient?.launcher_config?.download_multi || 3;
+        let maxDownloadFiles = configClient?.launcher_config?.download_multi || 10;
         let maxDownloadFilesInput = document.querySelector(".max-files");
         let maxDownloadFilesReset = document.querySelector(".max-files-reset");
         maxDownloadFilesInput.value = maxDownloadFiles;
 
         maxDownloadFilesInput.addEventListener("change", async () => {
             let configClient = await this.db.readData('configClient')
-            configClient.launcher_config.download_multi = parseInt(maxDownloadFilesInput.value) || 3;
+            configClient.launcher_config.download_multi = parseInt(maxDownloadFilesInput.value) || 10;
             await this.db.updateData('configClient', configClient);
         })
 
         maxDownloadFilesReset.addEventListener("click", async () => {
             let configClient = await this.db.readData('configClient')
-            maxDownloadFilesInput.value = 3
-            configClient.launcher_config.download_multi = 3;
+            maxDownloadFilesInput.value = 10
+            configClient.launcher_config.download_multi = 10;
             await this.db.updateData('configClient', configClient);
         })
 

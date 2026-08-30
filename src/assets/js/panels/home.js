@@ -533,7 +533,8 @@ class Home {
                 enable: options.loadder.loadder_type == 'none' ? false : true
             },
 
-            verify: options.verify,
+            // verify es manejado por cleanObsoleteInstanceFiles de forma segura sin borrar versiones locales
+            verify: false,
 
             ignored: [...options.ignored],
 
@@ -567,18 +568,41 @@ class Home {
             console.log(extract);
         });
 
-        launch.on('progress', (progress, size) => {
-            infoStarting.innerHTML = `Descargando assets.. | ${((progress / size) * 100).toFixed(0)}%`
-            ipcRenderer.send('main-window-progress', { progress, size })
-            progressBar.value = progress;
-            progressBar.max = size;
+        let currentSpeed = '';
+        launch.on('speed', (speed) => {
+            if (speed > 0) {
+                let mbps = (speed / 1048576).toFixed(1);
+                currentSpeed = `${mbps} MB/s`;
+            }
         });
 
+        let lastProgressTime = 0;
+        launch.on('progress', (progress, size) => {
+            let now = Date.now();
+            if (now - lastProgressTime > 75 || progress >= size) {
+                lastProgressTime = now;
+                let percent = ((progress / size) * 100).toFixed(0);
+                let currentMB = (progress / 1048576).toFixed(1);
+                let totalMB = (size / 1048576).toFixed(1);
+                let speedText = currentSpeed ? ` · ${currentSpeed}` : '';
+                infoStarting.innerHTML = `Descargando archivos.. ${percent}% (${currentMB} / ${totalMB} MB${speedText})`;
+                ipcRenderer.send('main-window-progress', { progress, size });
+                progressBar.value = progress;
+                progressBar.max = size;
+            }
+        });
+
+        let lastCheckTime = 0;
         launch.on('check', (progress, size) => {
-            infoStarting.innerHTML = `Verificando Archivos.. | ${((progress / size) * 100).toFixed(0)}%`
-            ipcRenderer.send('main-window-progress', { progress, size })
-            progressBar.value = progress;
-            progressBar.max = size;
+            let now = Date.now();
+            if (now - lastCheckTime > 75 || progress >= size) {
+                lastCheckTime = now;
+                let percent = ((progress / size) * 100).toFixed(0);
+                infoStarting.innerHTML = `Verificando archivos.. ${percent}%`;
+                ipcRenderer.send('main-window-progress', { progress, size });
+                progressBar.value = progress;
+                progressBar.max = size;
+            }
         });
 
         launch.on('estimated', (time) => {
@@ -751,12 +775,54 @@ class Home {
                 return results;
             };
 
+            // Identificar qué carpetas y subcarpetas están gestionadas activamente por el servidor
+            const serverManagedFolders = new Set();
+            for (let serverFile of serverFilesSet) {
+                let parts = serverFile.split('/');
+                if (parts.length > 1) {
+                    // Carpeta de primer nivel (ej: "mods", "resourcepacks", "shaderpacks", "config")
+                    serverManagedFolders.add(parts[0]);
+                    // Si está dentro de config/, registrar la subcarpeta (ej: "config/animatedframes", "config/fancymenu", "config/paxi")
+                    if (parts[0] === 'config' && parts.length > 2) {
+                        serverManagedFolders.add(`config/${parts[1]}`);
+                    }
+                }
+            }
+
+            // Función para determinar si un archivo local debe ser validado contra el servidor
+            const shouldCheckObsolete = (normRel) => {
+                let parts = normRel.split('/');
+                let topFolder = parts[0];
+                
+                // 1. mods/ siempre se sincroniza estrictamente (elimina mods obsoletos, viejos o no autorizados)
+                if (topFolder === 'mods') return true;
+
+                // 2. resourcepacks/ y shaderpacks/ se sincronizan si existen en el servidor
+                if (topFolder === 'resourcepacks' || topFolder === 'shaderpacks') {
+                    return serverManagedFolders.has(topFolder);
+                }
+
+                // 3. En config/, SOLO sincronizar subcarpetas gestionadas por el servidor (ej: config/animatedframes, config/fancymenu)
+                // Esto protege las configuraciones locales de los mods (sodium, voicechat, keybinds, iris, etc.)
+                if (topFolder === 'config') {
+                    if (parts.length > 2) {
+                        let subFolder = `config/${parts[1]}`;
+                        return serverManagedFolders.has(subFolder);
+                    }
+                    // Configs sueltos generados por mods en la raíz de config/ se preservan
+                    return false;
+                }
+
+                // Otras carpetas personalizadas del servidor
+                return serverManagedFolders.has(topFolder);
+            };
+
             const localFiles = scanDirectory(instancePath);
             let deletedCount = 0;
 
             for (const file of localFiles) {
                 const normRel = file.relPath.toLowerCase();
-                if (!serverFilesSet.has(normRel)) {
+                if (shouldCheckObsolete(normRel) && !serverFilesSet.has(normRel)) {
                     try {
                         fs.unlinkSync(file.fullPath);
                         console.log(`[CleanSync] 🗑️ Archivo obsoleto eliminado: ${file.relPath}`);
@@ -775,14 +841,15 @@ class Home {
                         if (entry.isDirectory()) {
                             const fullSub = path.join(dir, entry.name);
                             const relSub = path.relative(instancePath, fullSub).replace(/\\/g, '/');
-                            if (!isIgnored(relSub)) {
+                            if (!isIgnored(relSub) && shouldCheckObsolete(relSub.toLowerCase())) {
                                 removeEmptyDirs(fullSub);
                             }
                         }
                     }
                     if (dir !== instancePath) {
                         const remaining = fs.readdirSync(dir);
-                        if (remaining.length === 0) {
+                        const relDir = path.relative(instancePath, dir).replace(/\\/g, '/').toLowerCase();
+                        if (remaining.length === 0 && shouldCheckObsolete(relDir)) {
                             fs.rmdirSync(dir);
                             console.log(`[CleanSync] 📁 Carpeta vacía eliminada: ${path.relative(instancePath, dir)}`);
                         }
