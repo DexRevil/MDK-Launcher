@@ -1,13 +1,13 @@
 {
     "name": "MDK-Launcher",
     "preductname": "MDK Launcher",
-    "version": "3.6.9",
+    "version": "3.7.0",
     "description": "Lanzador de Clientes de MDK Team",
     "main": "src/app.js",
     "author": {
         "name": "MDK Team",
         "email": "mdkgameteam@gmail.com",
-        "url": "https://mdkteam.wixsite.com/web1"
+        "url": "https://mdkgameteam.github.io"
     },
     "url": "http://147.185.221.30:13602",
     "scripts": {

@@ -8,7 +8,7 @@ import Home from './panels/home.js';
 import Settings from './panels/settings.js';
 
 // import modules
-import { logger, config, changePanel, database, popup, setBackground, accountSelect, addAccount, pkg } from './utils.js';
+import { logger, config, changePanel, database, popup, setBackground, setInstanceBackground, accountSelect, addAccount, pkg } from './utils.js';
 const { AZauth, Microsoft, Mojang } = require('minecraft-java-core');
 
 // libs
@@ -166,6 +166,21 @@ class Launcher {
         let popupRefresh = new popup();
 
         if (accounts?.length) {
+            let activeAccount = accounts.find(a => a.ID == account_selected) || accounts[0];
+            let typeLabel = (activeAccount?.meta?.type || 'MOJANG').toUpperCase();
+
+            popupRefresh.openPopup({
+                title: 'Iniciando Perfil...',
+                content: `
+                    <div style="display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: center; font-size: 1.05rem; padding: 0.4rem 0;">
+                        <div><span style="color: var(--text-muted); font-weight: 500;">Tipo de Cuenta:</span> <b style="color: var(--color); font-weight: 800; letter-spacing: 0.5px;">${typeLabel}</b></div>
+                        <div><span style="color: var(--text-muted); font-weight: 500;">Usuario:</span> <b style="color: var(--element-color, #6366f1); font-weight: 800; font-size: 1.15rem;">${activeAccount.name}</b></div>
+                    </div>
+                `,
+                color: 'var(--color)',
+                background: false
+            });
+
             for (let account of accounts) {
                 let account_ID = account.ID
                 if (account.error) {
@@ -174,13 +189,6 @@ class Launcher {
                 }
                 if (account.meta.type === 'Xbox') {
                     console.log(`Cuenta: ${account.meta.type} | USUARIO: ${account.name}`);
-                    popupRefresh.openPopup({
-                        title: 'Cargando Usuario...',
-                        content: `CUENTA: ${account.meta.type} | USUARIO: ${account.name}`,
-                        color: 'var(--color)',
-                        background: false
-                    });
-
                     let refresh_accounts = await new Microsoft(this.config.client_id).refresh(account);
 
                     if (refresh_accounts.error) {
@@ -199,13 +207,6 @@ class Launcher {
                     if (account_ID == account_selected) accountSelect(refresh_accounts)
                 } else if (account.meta.type == 'AZauth') {
                     console.log(`TIPO: ${account.meta.type} | USUARIO: ${account.name}`);
-                    popupRefresh.openPopup({
-                        title: 'Cargando cuenta...',
-                        content: `TIPO: ${account.meta.type} | USUARIO: ${account.name}`,
-                        color: 'var(--color)',
-                        background: false
-                    });
-
                     // AZauth only works when the config.online value is a valid URL string
                     let refresh_accounts;
                     if (typeof this.config.online === 'string' && this.config.online.match(/^(http|https):\/\/[^ "]+$/)) {
@@ -237,12 +238,6 @@ class Launcher {
                     if (account_ID == account_selected) accountSelect(refresh_accounts)
                 } else if (account.meta.type == 'Mojang') {
                     console.log(`TIPO: ${account.meta.type} | USUARIO: ${account.name}`);
-                    popupRefresh.openPopup({
-                        title: 'Cargando MDK Auth',
-                        content: `TIPO: ${account.meta.type} | USUARIO: ${account.name}`,
-                        color: 'var(--color)',
-                        background: false
-                    });
                     if (account.meta.online == false) {
                         let refresh_accounts = await Mojang.login(account.name);
 
@@ -283,7 +278,7 @@ class Launcher {
             configClient = await this.db.readData('configClient')
             account_selected = configClient ? configClient.account_selected : null
 
-            if (!account_selected) {
+            if (!account_selected && accounts.length) {
                 let uuid = accounts[0].ID
                 if (uuid) {
                     configClient.account_selected = uuid
@@ -298,6 +293,14 @@ class Launcher {
                 popupRefresh.closePopup()
                 return changePanel("login");
             }
+
+            // Precarga anticipada de fondo e instancias para entrega inmediata
+            if (configClient?.instance_selct) {
+                await setInstanceBackground(configClient.instance_selct);
+            }
+
+            // Tiempo óptimo de presentación y precarga
+            await new Promise(resolve => setTimeout(resolve, 1500));
 
             popupRefresh.closePopup()
             changePanel("home");

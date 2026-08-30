@@ -12,15 +12,41 @@ let config = `${url}/launcher/config-launcher/config.json`;
 let news = `${url}/launcher/news-launcher/news.json`;
 
 class Config {
-    GetConfig() {
-        return new Promise((resolve, reject) => {
-            nodeFetch(config).then(async config => {
-                if (config.status === 200) return resolve(config.json());
-                else return reject({ error: { code: config.statusText, message: 'server not accessible' } });
-            }).catch(error => {
-                return reject({ error });
-            })
-        })
+    constructor() {
+        this.cachedConfig = null;
+    }
+
+    async GetConfig() {
+        let retries = 4;
+        let lastError;
+
+        while (retries > 0) {
+            try {
+                let res = await nodeFetch(config, { timeout: 6000 });
+                if (res.ok) {
+                    let data = await res.json();
+                    this.cachedConfig = data;
+                    return data;
+                } else {
+                    lastError = { code: res.statusText || 'HTTP_ERR', message: `Server returned status ${res.status}` };
+                }
+            } catch (err) {
+                lastError = err;
+                retries--;
+                if (retries > 0) {
+                    console.warn(`[Config] Reintentando conexión con config.json (${retries} intentos restantes)... Error:`, err.message || err);
+                    await new Promise(r => setTimeout(r, 400));
+                }
+            }
+        }
+
+        // Si fallaron los intentos pero existe caché local previa, usarla para evitar crash
+        if (this.cachedConfig) {
+            console.warn('[Config] ⚡ Usando configuración en caché local tras error de conexión temporal.');
+            return this.cachedConfig;
+        }
+
+        return Promise.reject({ error: lastError || { code: 'CONN_ERROR', message: 'Servidor no accesible' } });
     }
 
     async getInstanceList() {
