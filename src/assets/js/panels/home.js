@@ -49,7 +49,17 @@ class Home {
 
     async IniciarEstadoDiscord() {
         ipcRenderer.send('new-status-discord');
-        document.querySelector('.settings-btn').addEventListener('click', e => changePanel('settings'))
+        document.querySelector('.settings-btn')?.addEventListener('click', e => changePanel('settings'));
+
+        const reloadBtn = document.getElementById('sidebar-reload-btn');
+        if (reloadBtn) {
+            reloadBtn.addEventListener('click', () => {
+                reloadBtn.classList.add('spinning');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 250);
+            });
+        }
     }
 
     async loadRatingsData() {
@@ -437,8 +447,14 @@ class Home {
             img.alt = instance.name;
             img.className = 'instance-icon';
 
-            // Insertar imagen dentro del div
+            // Etiqueta flotante con nombre
+            let badge = document.createElement('span');
+            badge.className = 'instance-active-badge';
+            badge.textContent = instance.name;
+
+            // Insertar elementos dentro del div
             instanceDiv.appendChild(img);
+            instanceDiv.appendChild(badge);
 
             instanceDiv.addEventListener('click', async () => {
                 let configClient = await this.db.readData('configClient');
@@ -448,12 +464,82 @@ class Home {
                 document.querySelectorAll('.instance-main-item').forEach(el => el.classList.remove('active-instance'));
                 instanceDiv.classList.add('active-instance');
 
+                this.updateMagicIndicator(instanceDiv);
+
                 setStatus(instance.status, instance.name);
                 await setInstanceBackground(instance.name);
                 await this.updateRatingUI(instance.name);
+                await this.updatePlayButtonState(instance.name);
             });
 
             instancesVisibleList.appendChild(instanceDiv);
+        }
+
+        // Posicionar el indicador dinámico mágico sobre la instancia activa y actualizar estado del botón JUGAR/DESCARGAR
+        setTimeout(async () => {
+            this.updateMagicIndicator();
+            await this.updatePlayButtonState(instanceSelect);
+        }, 60);
+    }
+
+    async isInstanceInstalled(instanceName) {
+        try {
+            if (!instanceName) return false;
+            let appDataPath = await appdata();
+            let dataDir = this.config.dataDirectory || 'mdklauncher/launcher/data';
+            let folderName = process.platform === 'darwin' ? dataDir : `.${dataDir}`;
+            let localInstancePath = path.join(appDataPath, folderName, 'instances', instanceName);
+
+            if (!fs.existsSync(localInstancePath)) return false;
+
+            let files = fs.readdirSync(localInstancePath);
+            return files && files.length > 0;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    async updatePlayButtonState(instanceName) {
+        const playBtn = document.querySelector('.play-btn');
+        const playInstance = document.querySelector('.play-instance');
+        if (!playBtn || !playInstance) return;
+
+        if (!instanceName) {
+            let configClient = await this.db.readData('configClient');
+            instanceName = configClient?.instance_selct;
+        }
+
+        const isInstalled = await this.isInstanceInstalled(instanceName);
+
+        if (isInstalled) {
+            playBtn.innerHTML = 'JUGAR';
+            playInstance.classList.remove('is-download');
+            playInstance.setAttribute('data-tooltip', 'Juega en tu servidor favorito');
+        } else {
+            playBtn.innerHTML = `<span class="btn-download-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></span> DESCARGAR`;
+            playInstance.classList.add('is-download');
+            playInstance.setAttribute('data-tooltip', 'Descargar e instalar esta instancia');
+        }
+    }
+
+    updateMagicIndicator(targetEl) {
+        const magicIndicator = document.getElementById('magic-indicator');
+        const navbar = document.querySelector('.dynamic-glass-navbar');
+        if (!magicIndicator || !navbar) return;
+
+        if (!targetEl) {
+            targetEl = document.querySelector('.instance-main-item.active-instance');
+        }
+
+        if (targetEl) {
+            const navbarRect = navbar.getBoundingClientRect();
+            const targetRect = targetEl.getBoundingClientRect();
+            const targetY = targetRect.top - navbarRect.top + (targetRect.height / 2) - 26;
+
+            magicIndicator.style.transform = `translateY(${targetY}px)`;
+            magicIndicator.style.opacity = '1';
+        } else {
+            magicIndicator.style.opacity = '0';
         }
     }
 
@@ -652,7 +738,8 @@ class Home {
             };
             ipcRenderer.send('main-window-progress-reset')
             infoStartingBOX.style.display = "none"
-            playInstanceBTN.style.display = "block"
+            playInstanceBTN.style.display = "flex"
+            this.updatePlayButtonState(options.name);
             infoStarting.innerHTML = `Volviendo al juego..`
             new logger(pkg.name, '#7289da');
             console.log('Close');
@@ -663,10 +750,11 @@ class Home {
 
         launch.on('error', err => {
             let popupError = new popup()
+            let errorMsg = typeof err === 'string' ? err : (err?.error || err?.message || JSON.stringify(err));
 
             popupError.openPopup({
                 title: 'Ha ocurrido un error',
-                content: err.error,
+                content: errorMsg,
                 color: 'red',
                 options: true
             })
@@ -678,6 +766,7 @@ class Home {
             ipcRenderer.send('main-window-progress-reset')
             infoStartingBOX.style.display = "none"
             playInstanceBTN.style.display = "flex"
+            this.updatePlayButtonState(options.name);
             infoStarting.innerHTML = `Vérification`
             new logger(pkg.name, '#7289da');
             console.log(err);
