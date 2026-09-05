@@ -443,7 +443,7 @@ class Home {
 
             // Crear imagen
             let img = document.createElement('img');
-            img.src = `http://147.185.221.30:13602/files/logoins/${instance.name}.png`;
+            img.src = `https://launcher.mdkservicegame.xyz/files/logoins/${instance.name}.png`;
             img.alt = instance.name;
             img.className = 'instance-icon';
 
