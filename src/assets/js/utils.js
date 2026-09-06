@@ -243,7 +243,7 @@ async function setStatus(opt, instanceName) {
 
     // Atualizar imagen de la instancia si el elemento de la imagen existe
     if (iconServerElement && instanceName) {
-        iconServerElement.src = `https://launcher.mdkservicegame.xyz/files/logoins/${instanceName}.png`;
+        iconServerElement.src = `https://servicio.mdkgameteam.xyz/files/logoins/${instanceName}.png`;
         iconServerElement.alt = instanceName;
     }
 
