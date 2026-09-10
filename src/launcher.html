@@ -61,9 +61,103 @@
                         <p><strong>🔴 Rojo</strong> = Cuenta no-premium (sin acceso a multijugador en algunos servidores)<br>
                         <strong>🟢 Verde</strong> = Cuenta premium (acceso completo a multijugador)</p>
                     </div>
+                    <div class="help-section" id="btnOpenTermsFromHelp" style="cursor: pointer; border-left-color: var(--accent-color, #a855f7);">
+                        <h3>📜 Términos y Condiciones</h3>
+                        <p>Consulta las directrices comunitarias, licencias y normativas oficiales de MDK Game Team.</p>
+                    </div>
                 </div>
             </div>
         </div>
+
+        <div class="terms-modal-overlay" id="termsModal" style="display: none;">
+            <div class="terms-modal-box">
+                <div class="terms-modal-header">
+                    <div class="terms-header-badge">Versión Oficial 2026</div>
+                    <div class="terms-modal-close" id="termsModalClose" style="display: none;" title="Cerrar">✕</div>
+                    <h2>📜 Términos y Condiciones de Uso</h2>
+                    <p class="terms-subtitle">MDK Game Team · Ecosistema de Minecraft y MDK Launcher (mdkgameteam.xyz)</p>
+                </div>
+
+                <div class="terms-modal-content">
+                    <div class="terms-intro-box">
+                        Bienvenido a <strong>MDK Game Team</strong>. Al utilizar el <strong>MDK Launcher</strong> y nuestros servicios comunitarios, aceptas cumplir íntegramente con los siguientes términos y condiciones. Si no estás de acuerdo con alguna parte, por favor absténte de utilizar el software.
+                    </div>
+
+                    <div class="terms-section-card">
+                        <div class="terms-section-title">
+                            <span class="terms-icon">🎮</span> 1. Naturaleza de los Servicios y Eventos
+                        </div>
+                        <p>MDK Game Team es una plataforma comunitaria dedicada a la creación de experiencias personalizadas en Minecraft:</p>
+                        <div class="terms-grid-3">
+                            <div class="terms-pill"><strong style="color: #22d3ee;">Eventos:</strong> Dinámicas especiales con duración de días o semanas.</div>
+                            <div class="terms-pill"><strong style="color: #f43f5e;">Series:</strong> Proyectos inmersivos con semanas de desarrollo continuo.</div>
+                            <div class="terms-pill"><strong style="color: #c084fc;">Torneos:</strong> Competiciones estructuradas con reglamentos oficiales.</div>
+                        </div>
+                    </div>
+
+                    <div class="terms-section-card">
+                        <div class="terms-section-title">
+                            <span class="terms-icon">🛡️</span> 2. Propiedad Intelectual y Software de Terceros
+                        </div>
+                        <ul>
+                            <li><strong>Minecraft:</strong> Marca registrada de Mojang AB / Microsoft. MDK Game Team es un proyecto independiente no oficial y no está respaldado ni afiliado con Mojang o Microsoft.</li>
+                            <li><strong>Cargadores y Mods:</strong> Fabric, Forge, NeoForge, Sodium y demás modificaciones pertenecen a sus respectivos desarrolladores bajo sus licencias públicas originales.</li>
+                            <li><strong>MDK Launcher:</strong> Software cliente distribuido bajo licencia comunitaria libre sin fines de lucro (<span style="color: #22d3ee; font-family: monospace;">CC-BY-NC 4.0</span>).</li>
+                        </ul>
+                    </div>
+
+                    <div class="terms-section-card">
+                        <div class="terms-section-title">
+                            <span class="terms-icon">👥</span> 3. Normas de Conducta y Juego Limpio (Fair Play)
+                        </div>
+                        <p>Para garantizar un entorno saludable, equitativo y divertido para todos:</p>
+                        <ul>
+                            <li>Queda estrictamente prohibido el uso de clientes modificados para obtener ventajas desleales (hacks, x-ray, automatizaciones no autorizadas) en eventos competitivos.</li>
+                            <li>Se prohíben conductas de acoso, discriminación o sabotaje intencional a la infraestructura técnica de los servidores.</li>
+                            <li>El staff de MDK se reserva el derecho de admisión, sanción o veto permanente a participantes que infrinjan estas normas.</li>
+                        </ul>
+                    </div>
+
+                    <div class="terms-section-card">
+                        <div class="terms-section-title">
+                            <span class="terms-icon">🔒</span> 4. Cuentas, Credenciales y Privacidad
+                        </div>
+                        <p><strong>MDK Game Team nunca almacena ni solicita contraseñas de cuentas Microsoft o Minecraft.</strong> Todos los inicios de sesión premium se procesan mediante el protocolo seguro oficial OAuth de Microsoft directamente en tu dispositivo. Tu información personal nunca es compartida ni comercializada con terceros.</p>
+                    </div>
+
+                    <div class="terms-section-card">
+                        <div class="terms-section-title">
+                            <span class="terms-icon">🔄</span> 5. Actualizaciones de Software y Modpacks
+                        </div>
+                        <p>El MDK Launcher realiza sincronizaciones automáticas a través de nuestros servidores de distribución segura (<span style="color: #22d3ee; font-family: monospace;">servicio.mdkgameteam.xyz</span>). El sistema tiene la capacidad de descargar nuevos mods requeridos y purgar versiones obsoletas para asegurar que todos jueguen con la versión exacta del evento.</p>
+                    </div>
+
+                    <div class="terms-section-card">
+                        <div class="terms-section-title">
+                            <span class="terms-icon">⚠️</span> 6. Limitación de Responsabilidad
+                        </div>
+                        <p>Los servicios y softwares se proporcionan "tal cual" (as-is), sin garantías explícitas de compatibilidad con todo tipo de hardware. MDK Game Team no se hace responsable de daños derivados de modificaciones locales no soportadas realizadas por el usuario en sus archivos del juego.</p>
+                    </div>
+
+                    <div class="terms-copyright-notice">
+                        © 2026 MDK Game Team · mdkgameteam.xyz · Todos los derechos reservados.
+                    </div>
+                </div>
+
+                <div class="terms-modal-footer">
+                    <label class="terms-checkbox-container" id="termsCheckboxContainer">
+                        <input type="checkbox" id="termsAcceptCheckbox">
+                        <span class="terms-checkmark"></span>
+                        <span class="terms-checkbox-text">He leído y acepto los Términos y Condiciones y las Reglas de Juego Limpio de MDK Game Team.</span>
+                    </label>
+                    <div class="terms-modal-buttons">
+                        <button class="btn-terms-decline" id="btnTermsDecline">Rechazar y Salir</button>
+                        <button class="btn-terms-accept" id="btnTermsAccept" disabled>Aceptar y Continuar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="instance-delete-modal-overlay" id="instanceDeleteModal" style="display: none;">
             <div class="instance-delete-modal-box">
                 <div class="instance-delete-modal-icon">

@@ -352,6 +352,51 @@
     filter: brightness(1.12);
 }
 
+.play-instance.no-instance {
+    background: linear-gradient(135deg, #2a2d3d 0%, #1c1e27 100%) !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    animation: none !important;
+    cursor: pointer;
+    padding: 0 3.5rem !important;
+}
+
+.play-instance.no-instance:before {
+    display: none !important;
+}
+
+.play-instance.no-instance .play-btn {
+    color: #94a3b8 !important;
+    font-size: 1.55rem !important;
+    font-weight: 700 !important;
+    letter-spacing: 1.5px !important;
+    text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5) !important;
+    white-space: nowrap !important;
+}
+
+.play-instance.no-instance:hover {
+    transform: translateY(-2px) scale(1.01) !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.18) !important;
+    border-color: rgba(255, 255, 255, 0.28) !important;
+    filter: brightness(1.08) !important;
+}
+
+.play-instance.no-instance:active {
+    transform: translateY(1px) scale(0.98) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
+}
+
+.play-instance.shake-no-instance {
+    animation: shakeInstanceBtn 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both !important;
+}
+
+@keyframes shakeInstanceBtn {
+    10%, 90% { transform: translate3d(-3px, 0, 0); }
+    20%, 80% { transform: translate3d(4px, 0, 0); }
+    30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+    40%, 60% { transform: translate3d(6px, 0, 0); }
+}
+
 .btn-download-icon {
     display: inline-flex;
     align-items: center;
@@ -550,6 +595,25 @@
     border-color: rgba(255, 42, 133, 0.5);
     box-shadow: 0 0 20px rgba(255, 42, 133, 0.4);
     transform: rotate(90deg) scale(1.08);
+}
+
+.reload-btn.btn-blocked,
+.settings-btn.btn-blocked {
+    opacity: 0.28 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    filter: grayscale(100%) !important;
+    transform: none !important;
+    box-shadow: none !important;
+    border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.instances-visible-list.instances-blocked {
+    pointer-events: none !important;
+    opacity: 0.45 !important;
+    filter: grayscale(50%) !important;
+    cursor: not-allowed !important;
+    transition: var(--transition);
 }
 
 /*******************************************************************************

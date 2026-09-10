@@ -33,27 +33,67 @@ class Home {
         this.config = config;
         this.db = new database();
 
+        // En cada inicio del launcher, asegurar que no haya instancia preseleccionada
+        let configClient = await this.db.readData('configClient');
+        if (configClient && configClient.instance_selct) {
+            configClient.instance_selct = null;
+            await this.db.updateData('configClient', configClient);
+        }
+
         // Llamadas iniciales
         this.setupEventListeners();
         this.setupRatingListeners();
         await this.loadRatingsData();
-        this.updateInstancesData();
+        await this.updateInstancesData();
         this.IniciarEstadoDiscord();
-        this.initTooltips();
+        this.isGameRunning = false;
+        this.setSidebarActionsBlocked(false);
+        await this.updatePlayButtonState(null);
 
         // 🔁 Actualización automática cada 30s
         setInterval(() => {
-            this.updateInstancesData();
+            if (!this.isGameRunning) {
+                this.updateInstancesData();
+            }
         }, 30000); // 30,000 ms = 30 segundos
+    }
+
+    setSidebarActionsBlocked(blocked) {
+        this.isGameRunning = blocked;
+        const settingsBtn = document.querySelector('.settings-btn');
+        const reloadBtn = document.getElementById('sidebar-reload-btn');
+        const instancesList = document.querySelector('.instances-visible-list');
+
+        if (blocked) {
+            settingsBtn?.classList.add('btn-blocked');
+            settingsBtn?.setAttribute('data-tooltip', 'Configuración bloqueada durante el juego');
+
+            reloadBtn?.classList.add('btn-blocked');
+            reloadBtn?.setAttribute('data-tooltip', 'Recarga bloqueada durante el juego');
+
+            instancesList?.classList.add('instances-blocked');
+        } else {
+            settingsBtn?.classList.remove('btn-blocked');
+            settingsBtn?.setAttribute('data-tooltip', 'Configuración');
+
+            reloadBtn?.classList.remove('btn-blocked');
+            reloadBtn?.setAttribute('data-tooltip', 'Recargar Launcher');
+
+            instancesList?.classList.remove('instances-blocked');
+        }
     }
 
     async IniciarEstadoDiscord() {
         ipcRenderer.send('new-status-discord');
-        document.querySelector('.settings-btn')?.addEventListener('click', e => changePanel('settings'));
+        document.querySelector('.settings-btn')?.addEventListener('click', e => {
+            if (this.isGameRunning) return;
+            changePanel('settings');
+        });
 
         const reloadBtn = document.getElementById('sidebar-reload-btn');
         if (reloadBtn) {
             reloadBtn.addEventListener('click', () => {
+                if (this.isGameRunning) return;
                 reloadBtn.classList.add('spinning');
                 setTimeout(() => {
                     window.location.reload();
@@ -338,6 +378,13 @@ class Home {
 
                 instancePopup.style.display = 'flex';
             } else {
+                if (!configClient?.instance_selct) {
+                    instanceBTN.classList.remove('shake-no-instance');
+                    void instanceBTN.offsetWidth;
+                    instanceBTN.classList.add('shake-no-instance');
+                    setTimeout(() => instanceBTN.classList.remove('shake-no-instance'), 450);
+                    return;
+                }
                 this.startGame();
             }
         });
@@ -364,6 +411,7 @@ class Home {
                 }
                 await setInstanceBackground(newInstanceSelect);
                 await this.updateRatingUI(newInstanceSelect);
+                await this.updatePlayButtonState(newInstanceSelect);
             }
         });
 
@@ -385,22 +433,25 @@ class Home {
             instanceBTN.style.paddingRight = '0';
         }
 
-        if (!instanceSelect) {
-            let newInstanceSelect = instancesList.find(i => i.whitelistActive == false);
-            if (newInstanceSelect) {
-                let configClient = await this.db.readData('configClient');
-                configClient.instance_selct = newInstanceSelect.name;
-                instanceSelect = newInstanceSelect.name;
-                await this.db.updateData('configClient', configClient);
-            } else {
-                instanceSelect = null;
+        // Si la instancia seleccionada ya no existe o no tiene acceso por whitelist, deseleccionar
+        if (instanceSelect) {
+            let currentInst = instancesList.find(i => i.name === instanceSelect);
+            if (currentInst && currentInst.whitelistActive) {
+                let isAllowed = currentInst.whitelist?.some(w => w.toLowerCase() === auth?.name?.toLowerCase());
+                if (!isAllowed) {
+                    configClient.instance_selct = null;
+                    await this.db.updateData('configClient', configClient);
+                    instanceSelect = null;
+                }
             }
         }
 
-        // Actualizar fondo y clasificación de la instancia activa
+        // Actualizar fondo y clasificación de la instancia activa solo si hay una seleccionada
         if (instanceSelect) {
             await setInstanceBackground(instanceSelect);
             await this.updateRatingUI(instanceSelect);
+        } else {
+            await this.updateRatingUI(null);
         }
 
         // Sidebar instancias visibles con iconos
@@ -411,25 +462,12 @@ class Home {
             if (instance.whitelistActive) {
                 let whitelist = instance.whitelist.find(w => w.toLowerCase() === auth?.name?.toLowerCase());
                 if (!whitelist) continue;
+            }
 
-                if (instance.name == instanceSelect) {
-                    let newInstanceSelect = instancesList.find(i => i.whitelistActive == false);
-                    if (newInstanceSelect) {
-                        let configClient = await this.db.readData('configClient');
-                        configClient.instance_selct = newInstanceSelect.name;
-                        instanceSelect = newInstanceSelect.name;
-                        await this.db.updateData('configClient', configClient);
-                        setStatus(newInstanceSelect.status, newInstanceSelect.name);
-                        await setInstanceBackground(newInstanceSelect.name);
-                        await this.updateRatingUI(newInstanceSelect.name);
-                    }
-                }
-            } else {
-                if (instance.name == instanceSelect) {
-                    setStatus(instance.status, instance.name);
-                    await setInstanceBackground(instance.name);
-                    await this.updateRatingUI(instance.name);
-                }
+            if (instanceSelect && instance.name == instanceSelect) {
+                setStatus(instance.status, instance.name);
+                await setInstanceBackground(instance.name);
+                await this.updateRatingUI(instance.name);
             }
 
             let isRatingActive = instance.ratingActive !== false;
@@ -443,7 +481,7 @@ class Home {
 
             // Crear imagen
             let img = document.createElement('img');
-            img.src = `http://147.185.221.30:13602/files/logoins/${instance.name}.png`;
+            img.src = `https://servicio.mdkgameteam.xyz/files/logoins/${instance.name}.png`;
             img.alt = instance.name;
             img.className = 'instance-icon';
 
@@ -509,8 +547,17 @@ class Home {
             instanceName = configClient?.instance_selct;
         }
 
+        if (!instanceName) {
+            playBtn.innerHTML = 'Seleccione Instancia';
+            playInstance.classList.remove('is-download');
+            playInstance.classList.add('no-instance');
+            playInstance.setAttribute('data-tooltip', 'Selecciona una instancia en la lista lateral');
+            return;
+        }
+
         const isInstalled = await this.isInstanceInstalled(instanceName);
 
+        playInstance.classList.remove('no-instance');
         if (isInstalled) {
             playBtn.innerHTML = 'JUGAR';
             playInstance.classList.remove('is-download');
@@ -558,6 +605,17 @@ class Home {
             });
             return;
         }
+
+        if (!configClient.instance_selct) {
+            let playInstanceBTN = document.querySelector('.play-instance');
+            if (playInstanceBTN) {
+                playInstanceBTN.classList.remove('shake-no-instance');
+                void playInstanceBTN.offsetWidth;
+                playInstanceBTN.classList.add('shake-no-instance');
+                setTimeout(() => playInstanceBTN.classList.remove('shake-no-instance'), 450);
+            }
+            return;
+        }
         
         // Asegurar que las propiedades anidadas existen
         configClient.launcher_config = configClient.launcher_config || {};
@@ -582,6 +640,18 @@ class Home {
         }
         
         let options = instance.find(i => i.name == configClient.instance_selct)
+        if (!options) {
+            let playInstanceBTN = document.querySelector('.play-instance');
+            if (playInstanceBTN) {
+                playInstanceBTN.classList.remove('shake-no-instance');
+                void playInstanceBTN.offsetWidth;
+                playInstanceBTN.classList.add('shake-no-instance');
+                setTimeout(() => playInstanceBTN.classList.remove('shake-no-instance'), 450);
+            }
+            return;
+        }
+
+        this.setSidebarActionsBlocked(true);
 
         let playInstanceBTN = document.querySelector('.play-instance')
         let infoStartingBOX = document.querySelector('.info-starting-game')
@@ -739,6 +809,7 @@ class Home {
             ipcRenderer.send('main-window-progress-reset')
             infoStartingBOX.style.display = "none"
             playInstanceBTN.style.display = "flex"
+            this.setSidebarActionsBlocked(false);
             this.updatePlayButtonState(options.name);
             infoStarting.innerHTML = `Volviendo al juego..`
             new logger(pkg.name, '#7289da');
@@ -766,6 +837,7 @@ class Home {
             ipcRenderer.send('main-window-progress-reset')
             infoStartingBOX.style.display = "none"
             playInstanceBTN.style.display = "flex"
+            this.setSidebarActionsBlocked(false);
             this.updatePlayButtonState(options.name);
             infoStarting.innerHTML = `Vérification`
             new logger(pkg.name, '#7289da');

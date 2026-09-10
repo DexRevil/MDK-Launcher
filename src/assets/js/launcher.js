@@ -28,6 +28,7 @@ class Launcher {
         this.db = new database();
         await this.initConfigClient();
         this.createPanels(Login, Home, Settings);
+        await this.checkTermsAndConditions();
         this.startLauncher();
     }
 
@@ -157,6 +158,111 @@ class Launcher {
             panelsElem.appendChild(div);
             new panel().init(this.config);
         }
+    }
+
+    async checkTermsAndConditions() {
+        const CURRENT_TERMS_VERSION = '2026.1';
+
+        // Registrar listener para abrir y consultar términos desde el menú de Ayuda o Configuración
+        const helpTermsBtn = document.getElementById('btnOpenTermsFromHelp');
+        if (helpTermsBtn) {
+            helpTermsBtn.addEventListener('click', () => {
+                const helpPopup = document.querySelector('.help-popup');
+                if (helpPopup) helpPopup.classList.remove('show');
+                this.showTermsModal({ reviewOnly: true });
+            });
+        }
+
+        const settingsTermsBtn = document.getElementById('btnOpenTermsFromSettings');
+        if (settingsTermsBtn) {
+            settingsTermsBtn.addEventListener('click', () => {
+                this.showTermsModal({ reviewOnly: true });
+            });
+        }
+
+        let configClient = await this.db.readData('configClient');
+        if (configClient && configClient.terms_accepted_version === CURRENT_TERMS_VERSION) {
+            return;
+        }
+
+        // Si es la primera vez que se abre o una actualización, requerir aceptación obligatoria
+        return new Promise((resolve) => {
+            this.showTermsModal({
+                reviewOnly: false,
+                onAccept: async () => {
+                    let currentConfig = await this.db.readData('configClient') || {};
+                    currentConfig.terms_accepted_version = CURRENT_TERMS_VERSION;
+                    currentConfig.terms_accepted_date = new Date().toISOString();
+                    await this.db.updateData('configClient', currentConfig);
+                    resolve();
+                },
+                onDecline: () => {
+                    ipcRenderer.send('main-window-close');
+                }
+            });
+        });
+    }
+
+    showTermsModal({ reviewOnly = false, onAccept = null, onDecline = null } = {}) {
+        const modal = document.getElementById('termsModal');
+        if (!modal) return;
+
+        const checkboxContainer = document.getElementById('termsCheckboxContainer');
+        const checkbox = document.getElementById('termsAcceptCheckbox');
+        const btnAccept = document.getElementById('btnTermsAccept');
+        const btnDecline = document.getElementById('btnTermsDecline');
+        const closeBtn = document.getElementById('termsModalClose');
+
+        if (reviewOnly) {
+            if (closeBtn) {
+                closeBtn.style.display = 'flex';
+                closeBtn.onclick = () => { modal.style.display = 'none'; };
+            }
+            if (checkboxContainer) checkboxContainer.style.display = 'none';
+            if (btnDecline) btnDecline.style.display = 'none';
+            if (btnAccept) {
+                btnAccept.style.display = 'block';
+                btnAccept.disabled = false;
+                btnAccept.textContent = 'Cerrar';
+                btnAccept.onclick = () => { modal.style.display = 'none'; };
+            }
+            modal.onclick = (e) => {
+                if (e.target === modal) modal.style.display = 'none';
+            };
+        } else {
+            if (closeBtn) closeBtn.style.display = 'none';
+            if (checkboxContainer) checkboxContainer.style.display = 'flex';
+            if (checkbox) checkbox.checked = false;
+            modal.onclick = null; // En modo obligatorio no se cierra haciendo clic fuera
+
+            if (btnDecline) {
+                btnDecline.style.display = 'block';
+                btnDecline.onclick = () => {
+                    if (onDecline) onDecline();
+                };
+            }
+
+            if (btnAccept) {
+                btnAccept.style.display = 'block';
+                btnAccept.disabled = true;
+                btnAccept.textContent = 'Aceptar y Continuar';
+                btnAccept.onclick = () => {
+                    if (!checkbox.checked) return;
+                    modal.style.display = 'none';
+                    if (onAccept) onAccept();
+                };
+            }
+
+            if (checkbox) {
+                checkbox.onchange = () => {
+                    if (btnAccept) {
+                        btnAccept.disabled = !checkbox.checked;
+                    }
+                };
+            }
+        }
+
+        modal.style.display = 'flex';
     }
 
     async startLauncher() {
@@ -294,9 +400,9 @@ class Launcher {
                 return changePanel("login");
             }
 
-            // Precarga anticipada de fondo e instancias para entrega inmediata
-            if (configClient?.instance_selct) {
-                await setInstanceBackground(configClient.instance_selct);
+            if (configClient) {
+                configClient.instance_selct = null;
+                await this.db.updateData('configClient', configClient);
             }
 
             // Tiempo óptimo de presentación y precarga

@@ -1,7 +1,7 @@
 {
     "name": "MDK-Launcher",
     "preductname": "MDK Launcher",
-    "version": "3.7.0",
+    "version": "3.7.4",
     "description": "Lanzador de Clientes de MDK Team",
     "main": "src/app.js",
     "author": {
@@ -9,7 +9,7 @@
         "email": "mdkgameteam@gmail.com",
         "url": "https://mdkgameteam.github.io"
     },
-    "url": "http://147.185.221.30:13602",
+    "url": "https://servicio.mdkgameteam.xyz",
     "scripts": {
         "start": "cross-env-shell NODE_ENV=dev electron .",
         "dev": "cross-env-shell DEV_TOOL=open nodemon --exec npm start",
