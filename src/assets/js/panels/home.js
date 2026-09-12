@@ -685,7 +685,7 @@ class Home {
         let opt = {
             url: launchUrl,
             authenticator: authenticator,
-            timeout: 10000,
+            timeout: 300000,
             path: `${appDataPath}/${process.platform == 'darwin' ? dataDir : `.${dataDir}`}`,
             instance: options.name,
             version: options.loadder.minecraft_version,
@@ -788,8 +788,18 @@ class Home {
             infoStarting.innerHTML = `Abriendo el juego...`
         });
 
+        let activeErrorPopup = null;
+        let gameRunningNow = false;
+
         launch.on('data', (e) => {
-            progressBar.style.display = "none"
+            gameRunningNow = true;
+            progressBar.style.display = "none";
+            
+            // Si el juego arrancó con éxito, cerrar inmediatamente cualquier popup de error no fatal
+            if (activeErrorPopup) {
+                try { activeErrorPopup.closePopup(); } catch (_) {}
+                activeErrorPopup = null;
+            }
             
             // Asegurar que launcher_config existe con valor por defecto
             const closeLauncher = configClient.launcher_config?.closeLauncher || 'close-launcher';
@@ -811,6 +821,14 @@ class Home {
 
         launch.on('close', code => {
             console.log('Minecraft cerrado, mostrando launcher...');
+            gameRunningNow = false;
+
+            // Al cerrar el juego, limpiar cualquier popup de error zombi anterior
+            if (activeErrorPopup) {
+                try { activeErrorPopup.closePopup(); } catch (_) {}
+                activeErrorPopup = null;
+            }
+
             const closeLauncher = configClient.launcher_config?.closeLauncher || 'close-launcher';
             
             if (closeLauncher === 'close-launcher') {
@@ -830,15 +848,24 @@ class Home {
         });
 
         launch.on('error', err => {
-            let popupError = new popup()
             let errorMsg = typeof err === 'string' ? err : (err?.error || err?.message || JSON.stringify(err));
 
-            popupError.openPopup({
+            // Si el juego ya está arrancando o corriendo, ignorar avisos de abort no fatales
+            if (gameRunningNow && (errorMsg.includes('abort') || errorMsg.includes('AbortError'))) {
+                console.warn('[Launch] Aviso de timeout no fatal ignorado (el juego ya está en ejecución):', errorMsg);
+                return;
+            }
+
+            if (!activeErrorPopup) {
+                activeErrorPopup = new popup();
+            }
+
+            activeErrorPopup.openPopup({
                 title: 'Ha ocurrido un error',
                 content: errorMsg,
                 color: 'red',
                 options: true
-            })
+            });
 
             const closeLauncher = configClient.launcher_config?.closeLauncher || 'close-launcher';
             if (closeLauncher === 'close-launcher') {
@@ -872,7 +899,7 @@ class Home {
                 fetchFn = typeof fetch !== 'undefined' ? fetch : null;
             }
             if (!fetchFn) return;
-            const response = await fetchFn(serverUrl, { timeout: 10000 });
+            const response = await fetchFn(serverUrl, { timeout: 30000 });
             if (!response.ok) {
                 console.warn(`[CleanSync] No se pudo obtener la lista de archivos del servidor (HTTP ${response.status}). Se omite la limpieza.`);
                 return;
