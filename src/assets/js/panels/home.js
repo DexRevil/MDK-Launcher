@@ -479,11 +479,16 @@ class Home {
             instanceDiv.className = `instance-main-item${instance.name === instanceSelect ? ' active-instance' : ''}`;
             instanceDiv.title = isRatingActive ? `${instance.name} (★ ${ratingScore})` : instance.name;
 
-            // Crear imagen
+            // Crear imagen con fallback
             let img = document.createElement('img');
-            img.src = `https://servicio.mdkgameteam.xyz/files/logoins/${instance.name}.png`;
+            let serverUrl = pkg.user ? `${pkg.url}/${pkg.user}` : pkg.url;
+            img.src = `${serverUrl}/files/logoins/${encodeURIComponent(instance.name)}.png`;
             img.alt = instance.name;
             img.className = 'instance-icon';
+            img.onerror = () => {
+                img.onerror = null;
+                img.src = './assets/images/icon.png';
+            };
 
             // Etiqueta flotante con nombre
             let badge = document.createElement('span');

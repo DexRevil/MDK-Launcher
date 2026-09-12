@@ -241,10 +241,15 @@ async function setStatus(opt, instanceName) {
     // Mostrar el nombre de la instancia en lugar de la IP si está disponible
     nameServerElement.innerHTML = instanceName || nameServer
 
-    // Atualizar imagen de la instancia si el elemento de la imagen existe
+    // Atualizar imagen de la instancia si el elemento de la imagen existe con fallback
     if (iconServerElement && instanceName) {
-        iconServerElement.src = `https://servicio.mdkgameteam.xyz/files/logoins/${instanceName}.png`;
+        let serverUrl = pkg.user ? `${pkg.url}/${pkg.user}` : pkg.url;
+        iconServerElement.src = `${serverUrl}/files/logoins/${encodeURIComponent(instanceName)}.png`;
         iconServerElement.alt = instanceName;
+        iconServerElement.onerror = () => {
+            iconServerElement.onerror = null;
+            iconServerElement.src = './assets/images/icon.png';
+        };
     }
 
     let status = new Status(ip, port);
