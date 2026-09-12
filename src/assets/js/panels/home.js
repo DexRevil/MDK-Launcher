@@ -674,11 +674,16 @@ class Home {
         let folderName = process.platform === 'darwin' ? dataDir : `.${dataDir}`;
         let localInstancePath = path.join(appDataPath, folderName, 'instances', options.name);
 
+        let launchUrl = options.url;
+        if (typeof launchUrl === 'string' && launchUrl.startsWith('http://servicio.')) {
+            launchUrl = launchUrl.replace(/^http:\/\//, 'https://');
+        }
+
         // Limpieza automática de archivos obsoletos que fueron eliminados en el servidor
-        await this.cleanObsoleteInstanceFiles(localInstancePath, options.url, options.ignored);
+        await this.cleanObsoleteInstanceFiles(localInstancePath, launchUrl, options.ignored);
 
         let opt = {
-            url: options.url,
+            url: launchUrl,
             authenticator: authenticator,
             timeout: 10000,
             path: `${appDataPath}/${process.platform == 'darwin' ? dataDir : `.${dataDir}`}`,
@@ -854,9 +859,19 @@ class Home {
         if (!fs.existsSync(instancePath)) return;
         if (!serverUrl) return;
 
+        if (typeof serverUrl === 'string' && serverUrl.startsWith('http://servicio.')) {
+            serverUrl = serverUrl.replace(/^http:\/\//, 'https://');
+        }
+
         try {
             console.log(`[CleanSync] Sincronizando y verificando archivos obsoletos para: ${instancePath}`);
-            const fetchFn = typeof fetch !== 'undefined' ? fetch : require('node-fetch');
+            let fetchFn;
+            try {
+                fetchFn = require('node-fetch');
+            } catch (e) {
+                fetchFn = typeof fetch !== 'undefined' ? fetch : null;
+            }
+            if (!fetchFn) return;
             const response = await fetchFn(serverUrl, { timeout: 10000 });
             if (!response.ok) {
                 console.warn(`[CleanSync] No se pudo obtener la lista de archivos del servidor (HTTP ${response.status}). Se omite la limpieza.`);

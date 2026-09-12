@@ -50,7 +50,7 @@ class Config {
     }
 
     async getInstanceList() {
-        let urlInstance = `${url}/files`
+        let urlInstance = `${url}/files/`
         let instances;
         let retries = 3;
         let lastError;
@@ -83,6 +83,9 @@ class Config {
         for (let [name, data] of instances) {
             let instance = data
             instance.name = name
+            if (instance.url && typeof instance.url === 'string' && instance.url.startsWith('http://servicio.')) {
+                instance.url = instance.url.replace(/^http:\/\//, 'https://');
+            }
             instancesList.push(instance)
         }
         return instancesList
