@@ -16,6 +16,9 @@
         </div>
         <div class="other">
             <div class="frame">
+                <div id="network-status-btn" class="button-frame network-status-btn checking" data-tooltip="Comprobando conectividad de red...">
+                    <span class="network-status-dot"></span>
+                </div>
                 <div id="help" class="button-frame icon-help" title="Ayuda"></div>
                 <div id="minimize" class="button-frame icon-minimize"></div>
                 <div id="maximize" class="button-frame icon-maximize"></div>
@@ -60,6 +63,12 @@
                         <h3>🔴 🟢 Estado Premium</h3>
                         <p><strong>🔴 Rojo</strong> = Cuenta no-premium (sin acceso a multijugador en algunos servidores)<br>
                         <strong>🟢 Verde</strong> = Cuenta premium (acceso completo a multijugador)</p>
+                    </div>
+                    <div class="help-section">
+                        <h3>🌐 Estado de Red (IPv6 / IPv4)</h3>
+                        <p><strong>🟢 Verde</strong> = Conexión rápida a nuestros servidores ecuatorianos (IPv6 + IPv4 activados)<br>
+                        <strong>🟡 Amarillo</strong> = Conexión estándar (Solo IPv4, acceso a servidores de otros colaboradores)<br>
+                        <strong>🔴 Rojo</strong> = Sin conexión a Internet</p>
                     </div>
                     <div class="help-section" id="btnOpenTermsFromHelp" style="cursor: pointer; border-left-color: var(--accent-color, #a855f7);">
                         <h3>📜 Términos y Condiciones</h3>

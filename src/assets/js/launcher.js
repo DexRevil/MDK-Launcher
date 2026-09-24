@@ -15,6 +15,8 @@ const { AZauth, Microsoft, Mojang } = require('minecraft-java-core');
 const { ipcRenderer } = require('electron');
 const fs = require('fs');
 const os = require('os');
+const https = require('https');
+const http = require('http');
 
 class Launcher {
     async init() {
@@ -23,6 +25,7 @@ class Launcher {
         this.shortcut()
         await setBackground()
         this.initFrame();
+        this.initNetworkStatusCheck();
         this.config = await config.GetConfig().then(res => res).catch(err => err);
         if (await this.config.error) return this.errorConnect()
         this.db = new database();
@@ -114,6 +117,96 @@ class Launcher {
                     helpPopup.classList.remove('show');
                 }
             });
+        }
+    }
+
+    initNetworkStatusCheck() {
+        const netBtn = document.getElementById('network-status-btn');
+        if (!netBtn) return;
+
+        netBtn.addEventListener('click', () => {
+            if (netBtn.classList.contains('checking')) return;
+            this.runNetworkCheck();
+        });
+
+        // Ejecutar prueba inicial
+        this.runNetworkCheck();
+
+        // Repetir prueba cada 60 segundos
+        setInterval(() => {
+            this.runNetworkCheck();
+        }, 60000);
+    }
+
+    async runNetworkCheck() {
+        const netBtn = document.getElementById('network-status-btn');
+        if (!netBtn) return;
+
+        netBtn.className = 'button-frame network-status-btn checking';
+        netBtn.setAttribute('data-tooltip', 'Comprobando conectividad de red...');
+
+        try {
+            // 1. Detectar si alguna interfaz local tiene dirección IPv6 global
+            let hasLocalIPv6 = false;
+            const ifaces = os.networkInterfaces();
+            for (const name in ifaces) {
+                for (const iface of ifaces[name]) {
+                    if (iface.family === 'IPv6' && !iface.internal && !iface.address.startsWith('fe80:') && !iface.address.startsWith('::1')) {
+                        hasLocalIPv6 = true;
+                        break;
+                    }
+                }
+            }
+
+            // 2. Función auxiliar para probar endpoints con timeout
+            const testEndpoint = (url, family = 0, timeout = 3500) => {
+                return new Promise((resolve) => {
+                    try {
+                        const client = url.startsWith('https') ? https : http;
+                        const req = client.get(url, { family, timeout }, (res) => {
+                            res.resume();
+                            resolve(res.statusCode >= 200 && res.statusCode < 400);
+                        });
+                        req.on('error', () => resolve(false));
+                        req.on('timeout', () => {
+                            req.destroy();
+                            resolve(false);
+                        });
+                    } catch (e) {
+                        resolve(false);
+                    }
+                });
+            };
+
+            // 3. Si hay interfaz IPv6, comprobar salida real a internet IPv6
+            let ipv6Working = false;
+            if (hasLocalIPv6) {
+                ipv6Working = await testEndpoint('https://v6.ident.me', 6, 3000) ||
+                              await testEndpoint('https://ipv6.icanhazip.com', 6, 3000);
+            }
+
+            if (ipv6Working) {
+                netBtn.className = 'button-frame network-status-btn ipv6';
+                netBtn.setAttribute('data-tooltip', '🟢 Conexión rápida a nuestros servidores ecuatorianos (IPv6 + IPv4)');
+                return;
+            }
+
+            // 4. Si falla IPv6, probar si al menos hay conexión IPv4
+            const ipv4Working = await testEndpoint('https://v4.ident.me', 4, 3000) ||
+                                await testEndpoint('https://1.1.1.1', 4, 3000) ||
+                                await testEndpoint('https://www.google.com', 4, 3000);
+
+            if (ipv4Working) {
+                netBtn.className = 'button-frame network-status-btn ipv4';
+                netBtn.setAttribute('data-tooltip', '🟡 Conexión estándar (Solo IPv4): Servidores externos/colaboradores. Sin acceso directo a nodo local.');
+            } else {
+                netBtn.className = 'button-frame network-status-btn offline';
+                netBtn.setAttribute('data-tooltip', '🔴 Sin conexión a Internet');
+            }
+        } catch (err) {
+            console.error('Error al comprobar estado de red:', err);
+            netBtn.className = 'button-frame network-status-btn ipv4';
+            netBtn.setAttribute('data-tooltip', '🟡 Conexión estándar (Solo IPv4)');
         }
     }
 

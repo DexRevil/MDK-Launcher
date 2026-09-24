@@ -696,7 +696,7 @@ class Home {
             loader: {
                 type: options.loadder.loadder_type,
                 build: options.loadder.loadder_version,
-                enable: options.loadder.loadder_type == 'none' ? false : true
+                enable: (options.loadder.loadder_type == 'none' || options.loadder.loadder_type == 'vanilla') ? false : true
             },
 
             // verify es manejado por cleanObsoleteInstanceFiles de forma segura sin borrar versiones locales

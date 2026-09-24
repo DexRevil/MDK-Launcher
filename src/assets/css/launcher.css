@@ -256,6 +256,97 @@ input::-webkit-inner-spin-button {
     background-color: rgba(255,255,255,0.1);
 }
 
+/* Network Status Indicator (IPv6 / IPv4) */
+.network-status-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 32px;
+    cursor: pointer;
+    position: relative;
+    transition: background-color 0.2s ease;
+}
+
+.network-status-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.network-status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    transition: all 0.3s ease;
+}
+
+/* Checking state */
+.network-status-btn.checking .network-status-dot {
+    background-color: #94a3b8;
+    box-shadow: 0 0 8px rgba(148, 163, 184, 0.7);
+    animation: networkDotPulse 1.2s infinite ease-in-out;
+}
+
+/* IPv6 + IPv4 state (Green - Alta velocidad local ecuatoriana) */
+.network-status-btn.ipv6 .network-status-dot {
+    background-color: #22c55e;
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.8), inset 0 0 4px rgba(255, 255, 255, 0.4);
+}
+
+/* IPv4 only state (Yellow - Servidores externos/colaboradores) */
+.network-status-btn.ipv4 .network-status-dot {
+    background-color: #eab308;
+    box-shadow: 0 0 10px rgba(234, 179, 8, 0.8), inset 0 0 4px rgba(255, 255, 255, 0.4);
+}
+
+/* Offline state (Red) */
+.network-status-btn.offline .network-status-dot {
+    background-color: #ef4444;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
+}
+
+@keyframes networkDotPulse {
+    0%, 100% {
+        transform: scale(0.85);
+        opacity: 0.6;
+    }
+    50% {
+        transform: scale(1.15);
+        opacity: 1;
+    }
+}
+
+/* Network Status Tooltip */
+.network-status-btn[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: 36px;
+    right: 0;
+    transform: none;
+    background: rgba(15, 18, 28, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: #f1f5f9;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.45;
+    white-space: normal;
+    width: 250px;
+    text-align: left;
+    z-index: 10000;
+    pointer-events: none;
+    animation: networkTooltipFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+}
+
+@keyframes networkTooltipFade {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 /* Premium Tooltip */
 [data-tooltip] { position: relative; }
 
