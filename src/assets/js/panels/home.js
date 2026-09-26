@@ -7,6 +7,95 @@ const { Launch } = require('minecraft-java-core')
 const { shell, ipcRenderer } = require('electron')
 const fs = require('fs')
 const path = require('path')
+const crypto = require('crypto')
+
+// Helper para calcular hash (SHA-256 por defecto, o SHA-1/MD5) vía streams
+const computeFileHash = (filePath, algorithm = 'sha256') => {
+    return new Promise((resolve, reject) => {
+        try {
+            const shasum = crypto.createHash(algorithm);
+            const stream = fs.createReadStream(filePath);
+            stream.on('data', (d) => shasum.update(d));
+            stream.on('end', () => resolve(shasum.digest('hex')));
+            stream.on('error', (err) => reject(err));
+        } catch (err) {
+            reject(err);
+        }
+    });
+};
+
+// Monkey-patch a minecraft-java-core para soportar verificación nativa de hashes SHA-256 (64 hex)
+const applyMjcHashPatch = () => {
+    try {
+        let bundleModule = null;
+        for (const key of Object.keys(require.cache)) {
+            if (key.replace(/\\/g, '/').endsWith('Minecraft/Minecraft-Bundle.js')) {
+                bundleModule = require.cache[key]?.exports;
+                break;
+            }
+        }
+        if (!bundleModule) {
+            try {
+                const mjcMain = require.resolve('minecraft-java-core');
+                const mjcDir = path.dirname(mjcMain);
+                bundleModule = require(path.join(mjcDir, 'Minecraft', 'Minecraft-Bundle.js'));
+            } catch (_) {}
+        }
+        const MinecraftBundle = bundleModule?.default || bundleModule;
+        if (MinecraftBundle && MinecraftBundle.prototype && !MinecraftBundle.prototype._sha256Patched) {
+            MinecraftBundle.prototype._sha256Patched = true;
+            MinecraftBundle.prototype.checkBundle = async function(bundle) {
+                const toDownload = [];
+                for (const file of bundle) {
+                    if (!file.path) continue;
+                    file.path = path.resolve(this.options.path, file.path).replace(/\\/g, '/');
+                    file.folder = file.path.split('/').slice(0, -1).join('/');
+
+                    if (file.type === 'CFILE') {
+                        if (!fs.existsSync(file.folder)) {
+                            fs.mkdirSync(file.folder, { recursive: true, mode: 0o777 });
+                        }
+                        fs.writeFileSync(file.path, file.content ?? '', { encoding: 'utf8', mode: 0o755 });
+                        continue;
+                    }
+
+                    if (fs.existsSync(file.path)) {
+                        let replaceName = `${this.options.path}/`;
+                        if (this.options.instance) {
+                            replaceName = `${this.options.path}/instances/${this.options.instance}/`;
+                        }
+                        const relativePath = file.path.replace(replaceName, '');
+                        if (this.options.ignored && this.options.ignored.includes(relativePath)) {
+                            continue;
+                        }
+                        if (file.sha1) {
+                            let algo = 'sha1';
+                            if (file.sha1.length === 64) algo = 'sha256';
+                            else if (file.sha1.length === 32) algo = 'md5';
+
+                            try {
+                                const localHash = await computeFileHash(file.path, algo);
+                                if (localHash.toLowerCase() !== file.sha1.toLowerCase()) {
+                                    toDownload.push(file);
+                                }
+                            } catch (e) {
+                                toDownload.push(file);
+                            }
+                        }
+                    } else {
+                        toDownload.push(file);
+                    }
+                }
+                return toDownload;
+            };
+            console.log('[Patch] ✅ Soporte para SHA-256 habilitado en minecraft-java-core (checkBundle).');
+        }
+    } catch (e) {
+        console.warn('[Patch] Aviso: no se pudo parchear checkBundle de minecraft-java-core:', e.message || e);
+    }
+};
+
+applyMjcHashPatch();
 
 class Home {
     static id = "home";
@@ -679,8 +768,10 @@ class Home {
             launchUrl = launchUrl.replace(/^http:\/\//, 'https://');
         }
 
-        // Limpieza automática de archivos obsoletos que fueron eliminados en el servidor
-        await this.cleanObsoleteInstanceFiles(localInstancePath, launchUrl, options.ignored);
+        // Limpieza automática y migración inteligente in-place de mods (Opción 2: SHA-256)
+        await this.cleanObsoleteInstanceFiles(localInstancePath, launchUrl, options.ignored, !!options.encrypt_mods);
+
+        applyMjcHashPatch();
 
         let opt = {
             url: launchUrl,
@@ -882,7 +973,7 @@ class Home {
         });
     }
 
-    async cleanObsoleteInstanceFiles(instancePath, serverUrl, ignoredList = []) {
+    async cleanObsoleteInstanceFiles(instancePath, serverUrl, ignoredList = [], encryptMods = false) {
         if (!fs.existsSync(instancePath)) return;
         if (!serverUrl) return;
 
@@ -917,6 +1008,87 @@ class Home {
                     .filter(item => item && item.path)
                     .map(item => item.path.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase())
             );
+
+            // Mapeo de mods del servidor indexados por su hash SHA-256 para migración in-place
+            const serverModsByHash = new Map();
+            for (const item of serverData) {
+                if (!item || !item.path || !item.hash) continue;
+                const normPath = item.path.replace(/\\/g, '/').replace(/^\/+/, '');
+                if (normPath.toLowerCase().startsWith('mods/') && normPath.toLowerCase().endsWith('.jar')) {
+                    serverModsByHash.set(item.hash.toLowerCase(), item);
+                }
+            }
+
+            // Migración inteligente in-place de la carpeta mods/ (Opción 2: SHA-256)
+            // Renombra mods locales si coinciden con el SHA-256 del servidor (0 redescargas),
+            // y elimina mods locales viejos, corruptos o no autorizados.
+            const modsDir = path.join(instancePath, 'mods');
+            if (fs.existsSync(modsDir)) {
+                console.log(`[CleanSync] Sincronizando mods locales in-place con hashes SHA-256...`);
+                const scanJars = (dir) => {
+                    let jars = [];
+                    try {
+                        const list = fs.readdirSync(dir, { withFileTypes: true });
+                        for (const entry of list) {
+                            const full = path.join(dir, entry.name);
+                            if (entry.isDirectory()) {
+                                jars.push(...scanJars(full));
+                            } else if (entry.isFile() && entry.name.toLowerCase().endsWith('.jar')) {
+                                jars.push(full);
+                            }
+                        }
+                    } catch (e) {
+                        console.warn(`[CleanSync] Error al listar archivos en ${dir}:`, e.message || e);
+                    }
+                    return jars;
+                };
+
+                const localJars = scanJars(modsDir);
+                for (const jarPath of localJars) {
+                    let localHash = null;
+                    try {
+                        localHash = await computeFileHash(jarPath, 'sha256');
+                    } catch (err) {
+                        console.warn(`[CleanSync] Error calculando SHA-256 para ${jarPath}:`, err.message || err);
+                        continue;
+                    }
+
+                    const matchedServerMod = serverModsByHash.get(localHash.toLowerCase());
+                    if (matchedServerMod) {
+                        // Mod válido reconocido por el servidor
+                        const targetRelPath = matchedServerMod.path.replace(/\\/g, '/').replace(/^\/+/, '');
+                        const targetFullPath = path.join(instancePath, targetRelPath);
+
+                        if (path.resolve(jarPath) !== path.resolve(targetFullPath)) {
+                            try {
+                                const targetFolder = path.dirname(targetFullPath);
+                                if (!fs.existsSync(targetFolder)) {
+                                    fs.mkdirSync(targetFolder, { recursive: true });
+                                }
+
+                                if (fs.existsSync(targetFullPath)) {
+                                    // Ya existe el archivo objetivo con el mismo hash; remover el redundante
+                                    fs.unlinkSync(jarPath);
+                                    console.log(`[CleanSync] 🔄 Mod duplicado eliminado (ya existe migrado): ${path.basename(jarPath)}`);
+                                } else {
+                                    fs.renameSync(jarPath, targetFullPath);
+                                    console.log(`[CleanSync] 🔄 Mod migrado in-place (0 redescarga): ${path.basename(jarPath)} -> ${path.basename(targetFullPath)}`);
+                                }
+                            } catch (renameErr) {
+                                console.warn(`[CleanSync] Error al migrar mod in-place ${path.basename(jarPath)}:`, renameErr.message || renameErr);
+                            }
+                        }
+                    } else {
+                        // Mod local desconocido, modificado o no autorizado: eliminarlo
+                        try {
+                            fs.unlinkSync(jarPath);
+                            console.log(`[CleanSync] 🗑️ Mod no autorizado o sobrante eliminado: ${path.basename(jarPath)}`);
+                        } catch (unlinkErr) {
+                            console.warn(`[CleanSync] Error al eliminar mod no autorizado ${path.basename(jarPath)}:`, unlinkErr.message || unlinkErr);
+                        }
+                    }
+                }
+            }
 
             // Lista de carpetas y archivos locales que NUNCA deben borrarse (archivos del usuario del juego)
             const defaultProtected = [
