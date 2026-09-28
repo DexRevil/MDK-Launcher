@@ -4,8 +4,20 @@
  */
 
 const { ipcRenderer, shell } = require('electron');
-const dnsResolver = require('./utils/dnsResolver.js');
 const os = require('os');
+
+// Cargar resolver DNS de forma segura sin romper rutas
+let dnsResolver = (typeof global !== 'undefined' && (global.__MDK_DNS_RESOLVER__ || global.dnsResolver)) || null;
+if (!dnsResolver) {
+    try {
+        dnsResolver = require('./assets/js/utils/dnsResolver.js');
+    } catch (e1) {
+        try {
+            dnsResolver = require('./utils/dnsResolver.js');
+        } catch (e2) {}
+    }
+}
+
 let pkg;
 try {
     pkg = require('../../../package.json');
@@ -27,15 +39,29 @@ class Splash {
         this.splashAuthor = document.querySelector(".splash-author");
         this.message = document.querySelector(".message");
         this.progress = document.querySelector(".progress");
-        document.addEventListener('DOMContentLoaded', async () => {
-            let databaseLauncher = new database();
-            let configClient = await databaseLauncher.readData('configClient');
-            let theme = configClient?.launcher_config?.theme || "auto"
-            let isDarkTheme = await ipcRenderer.invoke('is-dark-theme', theme).then(res => res)
-            document.body.className = isDarkTheme ? 'dark global' : 'light global';
-            if (process.platform == 'win32') ipcRenderer.send('update-window-progress-load')
-            this.startAnimation()
-        });
+
+        const init = async () => {
+            try {
+                let databaseLauncher = new database();
+                let configClient = await databaseLauncher.readData('configClient');
+                let theme = configClient?.launcher_config?.theme || "auto";
+                let isDarkTheme = await ipcRenderer.invoke('is-dark-theme', theme).then(res => res).catch(() => true);
+                document.body.className = isDarkTheme ? 'dark global' : 'light global';
+            } catch (err) {
+                console.warn('Error inicializando tema en Splash:', err);
+                document.body.className = 'dark global';
+            }
+            if (process.platform == 'win32') {
+                try { ipcRenderer.send('update-window-progress-load'); } catch (e) {}
+            }
+            this.startAnimation();
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
     }
 
     async startAnimation() {
@@ -101,13 +127,15 @@ class Splash {
 
     async dowloadUpdate() {
         const repoURL = (pkg?.repository?.url || "https://github.com/DexRevil/MDK-Launcher.git").replace("git+", "").replace(".git", "").replace("https://github.com/", "").split("/");
-        const githubAPI = await nodeFetch('https://api.github.com', { agent: dnsResolver.customHttpsAgent }).then(res => res.json()).catch(err => err);
+        const fetchOpts = dnsResolver?.customHttpsAgent ? { agent: dnsResolver.customHttpsAgent } : {};
+        const githubAPI = await nodeFetch('https://api.github.com', fetchOpts).then(res => res.json()).catch(err => err);
 
-        const githubAPIRepoURL = githubAPI.repository_url.replace("{owner}", repoURL[0]).replace("{repo}", repoURL[1]);
-        const githubAPIRepo = await nodeFetch(githubAPIRepoURL, { agent: dnsResolver.customHttpsAgent }).then(res => res.json()).catch(err => err);
+        const githubAPIRepoURL = githubAPI?.repository_url?.replace("{owner}", repoURL[0]).replace("{repo}", repoURL[1]);
+        if (!githubAPIRepoURL) return this.shutdown("Error al consultar actualización.");
+        const githubAPIRepo = await nodeFetch(githubAPIRepoURL, fetchOpts).then(res => res.json()).catch(err => err);
 
-        const releases_url = await nodeFetch(githubAPIRepo.releases_url.replace("{/id}", ''), { agent: dnsResolver.customHttpsAgent }).then(res => res.json()).catch(err => err);
-        const latestRelease = releases_url[0].assets;
+        const releases_url = await nodeFetch(githubAPIRepo?.releases_url?.replace("{/id}", '') || '', fetchOpts).then(res => res.json()).catch(err => err);
+        const latestRelease = releases_url?.[0]?.assets;
         let latest;
 
         if (os.platform() == 'darwin') latest = this.getLatestReleaseForOS('mac', '.dmg', latestRelease);

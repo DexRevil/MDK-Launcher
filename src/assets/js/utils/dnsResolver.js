@@ -181,10 +181,17 @@ const customHttpAgent = new http.Agent({
 
 console.log('[DNS-Resolver] ✅ Sistema Multi-DNS autónomo activo (Cloudflare + Google + Quad9 + DoH).');
 
-module.exports = {
+const resolverModule = {
     customLookup,
     resolveDomain,
     queryDoH,
     customHttpsAgent,
     customHttpAgent
 };
+
+if (typeof global !== 'undefined') {
+    global.__MDK_DNS_RESOLVER__ = resolverModule;
+    global.dnsResolver = resolverModule;
+}
+
+module.exports = resolverModule;

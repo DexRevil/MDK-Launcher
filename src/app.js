@@ -9,12 +9,6 @@ const { app, ipcMain, nativeTheme } = require('electron');
 const { Microsoft } = require('minecraft-java-core');
 const { autoUpdater } = require('electron-updater')
 
-// Habilitar DoH nativo en Chromium
-try {
-    app.commandLine.appendSwitch('enable-doh');
-    app.commandLine.appendSwitch('doh-url', 'https://cloudflare-dns.com/dns-query');
-} catch (e) {}
-
 const path = require('path');
 const fs = require('fs');
 
@@ -37,7 +31,7 @@ else app.whenReady().then(() => {
     if (app.configureHostResolver) {
         try {
             app.configureHostResolver({
-                secureDnsMode: 'secure',
+                secureDnsMode: 'automatic',
                 secureDnsServers: [
                     'https://cloudflare-dns.com/dns-query',
                     'https://dns.google/dns-query'
