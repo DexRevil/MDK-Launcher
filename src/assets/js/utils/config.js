@@ -1,12 +1,39 @@
 /**
- * @author Luuxis
+ * @author Luuxis & MDK Team
  * @license CC-BY-NC 4.0 - https://creativecommons.org/licenses/by-nc/4.0
  */
 
-const pkg = require('../package.json');
+let dnsResolver = null;
+try {
+    dnsResolver = require('./dnsResolver.js');
+} catch (e1) {
+    try {
+        dnsResolver = require('./assets/js/utils/dnsResolver.js');
+    } catch (e2) {
+        try {
+            dnsResolver = require('./utils/dnsResolver.js');
+        } catch (e3) {
+            console.warn('[Config] dnsResolver cargado desde globalAgent');
+        }
+    }
+}
 const nodeFetch = require("node-fetch");
 const convert = require('xml-js');
-let url = pkg.user ? `${pkg.url}/${pkg.user}` : pkg.url
+
+let pkg = null;
+try {
+    pkg = require('../../../../package.json');
+} catch (e1) {
+    try {
+        pkg = require('../package.json');
+    } catch (e2) {
+        pkg = { url: "https://servicio.mdkgameteam.xyz" };
+    }
+}
+
+const DEFAULT_SERVER_URL = "https://servicio.mdkgameteam.xyz";
+let baseUrl = (pkg && pkg.url) ? pkg.url : DEFAULT_SERVER_URL;
+let url = (pkg && pkg.user) ? `${baseUrl}/${pkg.user}` : baseUrl;
 
 let config = `${url}/launcher/config-launcher/config.json`;
 let news = `${url}/launcher/news-launcher/news.json`;
@@ -22,7 +49,10 @@ class Config {
 
         while (retries > 0) {
             try {
-                let res = await nodeFetch(config, { timeout: 6000 });
+                let res = await nodeFetch(config, {
+                    agent: dnsResolver?.customHttpsAgent,
+                    timeout: 8000
+                });
                 if (res.ok) {
                     let data = await res.json();
                     this.cachedConfig = data;
@@ -40,6 +70,29 @@ class Config {
             }
         }
 
+        // Intento de rescate final directo con DoH (DNS-over-HTTPS)
+        try {
+            console.log('[Config] Intentando rescate DoH para config.json...');
+            const urlObj = new URL(config);
+            const dohRecords = await dnsResolver?.queryDoH(urlObj.hostname, 'A');
+            if (dohRecords && dohRecords.length > 0) {
+                const targetIp = dohRecords[0].address;
+                const directUrl = `https://${targetIp}${urlObj.pathname}${urlObj.search}`;
+                const res = await nodeFetch(directUrl, {
+                    headers: { 'Host': urlObj.hostname },
+                    timeout: 7000
+                });
+                if (res.ok) {
+                    let data = await res.json();
+                    this.cachedConfig = data;
+                    console.log('[Config] ✅ Rescate DoH exitoso para config.json.');
+                    return data;
+                }
+            }
+        } catch (rescueErr) {
+            console.warn('[Config] Rescate DoH no disponible:', rescueErr.message || rescueErr);
+        }
+
         // Si fallaron los intentos pero existe caché local previa, usarla para evitar crash
         if (this.cachedConfig) {
             console.warn('[Config] ⚡ Usando configuración en caché local tras error de conexión temporal.');
@@ -50,81 +103,90 @@ class Config {
     }
 
     async getInstanceList() {
-        let urlInstance = `${url}/files/`
+        let urlInstance = `${url}/files/`;
         let instances;
         let retries = 3;
         let lastError;
 
         while (retries > 0) {
             try {
-                let res = await nodeFetch(urlInstance, { timeout: 5000 });
+                let res = await nodeFetch(urlInstance, {
+                    agent: dnsResolver?.customHttpsAgent,
+                    timeout: 6000
+                });
                 instances = await res.json();
-                break; // Éxito, salir del bucle
+                break;
             } catch (err) {
                 lastError = err;
                 retries--;
                 if (retries > 0) {
                     console.warn(`[Config] Error al obtener lista de instancias (reintentando...):`, err.message || err);
-                    await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar 1s antes de reintentar
+                    await new Promise(resolve => setTimeout(resolve, 800));
                 }
             }
         }
 
         if (retries === 0) {
-            console.error('[Config] Error crítico al obtener lista de instancias tras varios intentos:', lastError.message || lastError);
+            console.error('[Config] Error crítico al obtener lista de instancias tras varios intentos:', lastError?.message || lastError);
             return [];
         }
 
         if (!instances || typeof instances !== 'object') return [];
 
-        let instancesList = []
-        instances = Object.entries(instances)
+        let instancesList = [];
+        instances = Object.entries(instances);
 
         for (let [name, data] of instances) {
-            let instance = data
-            instance.name = name
+            let instance = data;
+            instance.name = name;
             if (instance.url && typeof instance.url === 'string' && instance.url.startsWith('http://servicio.')) {
                 instance.url = instance.url.replace(/^http:\/\//, 'https://');
             }
-            instancesList.push(instance)
+            instancesList.push(instance);
         }
-        return instancesList
+        return instancesList;
     }
 
     async getNews() {
-        let config = await this.GetConfig() || {}
+        let configData = await this.GetConfig() || {};
 
-        if (config.rss) {
+        if (configData.rss) {
             return new Promise((resolve, reject) => {
-                nodeFetch(config.rss).then(async config => {
-                    if (config.status === 200) {
-                        let news = [];
-                        let response = await config.text()
-                        response = (JSON.parse(convert.xml2json(response, { compact: true })))?.rss?.channel?.item;
+                nodeFetch(configData.rss, {
+                    agent: dnsResolver?.customHttpsAgent,
+                    timeout: 6000
+                }).then(async res => {
+                    if (res.status === 200) {
+                        let newsList = [];
+                        let responseText = await res.text();
+                        let responseJson = (JSON.parse(convert.xml2json(responseText, { compact: true })))?.rss?.channel?.item;
 
-                        if (!Array.isArray(response)) response = [response];
-                        for (let item of response) {
-                            news.push({
-                                title: item.title._text,
-                                content: item['content:encoded']._text,
-                                author: item['dc:creator']._text,
-                                publish_date: item.pubDate._text
-                            })
+                        if (!Array.isArray(responseJson)) responseJson = [responseJson];
+                        for (let item of responseJson) {
+                            if (item) {
+                                newsList.push({
+                                    title: item.title?._text || '',
+                                    content: item['content:encoded']?._text || '',
+                                    author: item['dc:creator']?._text || '',
+                                    publish_date: item.pubDate?._text || ''
+                                });
+                            }
                         }
-                        return resolve(news);
+                        return resolve(newsList);
                     }
-                    else return reject({ error: { code: config.statusText, message: 'server not accessible' } });
-                }).catch(error => reject({ error }))
-            })
+                    return reject({ error: { code: res.statusText, message: 'server not accessible' } });
+                }).catch(error => reject({ error }));
+            });
         } else {
             return new Promise((resolve, reject) => {
-                nodeFetch(news).then(async config => {
-                    if (config.status === 200) return resolve(config.json());
-                    else return reject({ error: { code: config.statusText, message: 'server not accessible' } });
-                }).catch(error => {
-                    return reject({ error });
-                })
-            })
+                nodeFetch(news, {
+                    agent: dnsResolver?.customHttpsAgent,
+                    timeout: 6000
+                }).then(async res => {
+                    if (res.status === 200) return resolve(res.json());
+                    return reject({ error: { code: res.statusText, message: 'server not accessible' } });
+                }).catch(error => reject({ error }));
+            });
         }
     }
 
@@ -136,7 +198,10 @@ class Config {
         if (params.length > 0) ratingsUrl += `?${params.join('&')}`;
 
         try {
-            let res = await nodeFetch(ratingsUrl, { timeout: 4000 });
+            let res = await nodeFetch(ratingsUrl, {
+                agent: dnsResolver?.customHttpsAgent,
+                timeout: 5000
+            });
             if (res.ok) {
                 return await res.json();
             }
@@ -159,7 +224,8 @@ class Config {
                     rating: parseInt(rating),
                     comment: comment
                 }),
-                timeout: 5000
+                agent: dnsResolver?.customHttpsAgent,
+                timeout: 6000
             });
             if (res.ok) {
                 return await res.json();

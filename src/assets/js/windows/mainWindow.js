@@ -6,7 +6,16 @@
 const { app, BrowserWindow, Menu } = require("electron");
 const path = require("path");
 const os = require("os");
-const pkg = require("../../../../package.json");
+let pkg;
+try {
+    pkg = require("../../../../package.json");
+} catch (e) {
+    try {
+        pkg = require("../package.json");
+    } catch (e2) {
+        pkg = { preductname: "MDK Launcher", version: "3.8.0" };
+    }
+}
 let dev = process.env.DEV_TOOL === 'open';
 let mainWindow = undefined;
 

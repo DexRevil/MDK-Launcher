@@ -6,7 +6,16 @@
 const { ipcRenderer } = require('electron')
 const { Status } = require('minecraft-java-core')
 const fs = require('fs');
-const pkg = require('../package.json');
+let pkg;
+try {
+    pkg = require('../../../package.json');
+} catch (e1) {
+    try {
+        pkg = require('../package.json');
+    } catch (e2) {
+        pkg = { url: "https://servicio.mdkgameteam.xyz" };
+    }
+}
 
 import config from './utils/config.js';
 import database from './utils/database.js';
@@ -20,7 +29,8 @@ const instanceBgCache = new Map();
 async function checkInstanceBackground(instanceName) {
     if (instanceBgCache.has(instanceName)) return instanceBgCache.get(instanceName);
 
-    let serverUrl = pkg.user ? `${pkg.url}/${pkg.user}` : pkg.url;
+    let serverBase = (pkg && pkg.url) ? pkg.url : "https://servicio.mdkgameteam.xyz";
+    let serverUrl = (pkg && pkg.user) ? `${serverBase}/${pkg.user}` : serverBase;
     try {
         let apiUrl = `${serverUrl}/files/admin/api.php?action=get_instance_background&instance=${encodeURIComponent(instanceName)}`;
         let res = await fetch(apiUrl);

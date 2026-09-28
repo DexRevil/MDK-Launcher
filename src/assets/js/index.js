@@ -4,8 +4,18 @@
  */
 
 const { ipcRenderer, shell } = require('electron');
-const pkg = require('../package.json');
+const dnsResolver = require('./utils/dnsResolver.js');
 const os = require('os');
+let pkg;
+try {
+    pkg = require('../../../package.json');
+} catch (e1) {
+    try {
+        pkg = require('../package.json');
+    } catch (e2) {
+        pkg = { repository: { url: "https://github.com/DexRevil/MDK-Launcher.git" } };
+    }
+}
 import { config, database } from './utils.js';
 const nodeFetch = require("node-fetch");
 
@@ -90,13 +100,13 @@ class Splash {
     }
 
     async dowloadUpdate() {
-        const repoURL = pkg.repository.url.replace("git+", "").replace(".git", "").replace("https://github.com/", "").split("/");
-        const githubAPI = await nodeFetch('https://api.github.com').then(res => res.json()).catch(err => err);
+        const repoURL = (pkg?.repository?.url || "https://github.com/DexRevil/MDK-Launcher.git").replace("git+", "").replace(".git", "").replace("https://github.com/", "").split("/");
+        const githubAPI = await nodeFetch('https://api.github.com', { agent: dnsResolver.customHttpsAgent }).then(res => res.json()).catch(err => err);
 
         const githubAPIRepoURL = githubAPI.repository_url.replace("{owner}", repoURL[0]).replace("{repo}", repoURL[1]);
-        const githubAPIRepo = await nodeFetch(githubAPIRepoURL).then(res => res.json()).catch(err => err);
+        const githubAPIRepo = await nodeFetch(githubAPIRepoURL, { agent: dnsResolver.customHttpsAgent }).then(res => res.json()).catch(err => err);
 
-        const releases_url = await nodeFetch(githubAPIRepo.releases_url.replace("{/id}", '')).then(res => res.json()).catch(err => err);
+        const releases_url = await nodeFetch(githubAPIRepo.releases_url.replace("{/id}", ''), { agent: dnsResolver.customHttpsAgent }).then(res => res.json()).catch(err => err);
         const latestRelease = releases_url[0].assets;
         let latest;
 
