@@ -8,6 +8,7 @@ const { shell, ipcRenderer } = require('electron')
 const fs = require('fs')
 const path = require('path')
 const crypto = require('crypto')
+const net = require('net')
 
 // Helper para calcular hash (SHA-256 por defecto, o SHA-1/MD5) vía streams
 const computeFileHash = (filePath, algorithm = 'sha256') => {
@@ -96,6 +97,240 @@ const applyMjcHashPatch = () => {
 };
 
 applyMjcHashPatch();
+
+// ==================== DUAL STACK ROUTING ENGINE ====================
+
+/**
+ * Prueba la conectividad IPv6 hacia el host y puerto especificados con timeout configurable.
+ * @param {string} host 
+ * @param {number} port 
+ * @param {number} timeoutMs 
+ * @returns {Promise<boolean>}
+ */
+const checkIPv6Connectivity = (host, port, timeoutMs = 1500) => {
+    return new Promise((resolve) => {
+        let finished = false;
+        const socket = new net.Socket();
+        socket.setTimeout(timeoutMs);
+
+        const finish = (result) => {
+            if (!finished) {
+                finished = true;
+                socket.destroy();
+                resolve(result);
+            }
+        };
+
+        socket.on('connect', () => finish(true));
+        socket.on('timeout', () => finish(false));
+        socket.on('error', () => finish(false));
+
+        try {
+            socket.connect({ host: host, port: Number(port) || 25565, family: 6 });
+        } catch (_) {
+            finish(false);
+        }
+    });
+};
+
+/**
+ * Genera un buffer binario NBT completamente conforme al estándar para servers.dat de Minecraft.
+ * @param {string} serverName 
+ * @param {string} serverIp 
+ * @returns {Buffer}
+ */
+const createServersDatBuffer = (serverName, serverIp) => {
+    const nameBuf = Buffer.from(serverName || 'Minecraft Server', 'utf8');
+    const ipBuf = Buffer.from(serverIp, 'utf8');
+
+    const nameLen = Buffer.alloc(2);
+    nameLen.writeUInt16BE(nameBuf.length, 0);
+
+    const ipLen = Buffer.alloc(2);
+    ipLen.writeUInt16BE(ipBuf.length, 0);
+
+    return Buffer.concat([
+        Buffer.from([0x0a, 0x00, 0x00]), // Root Compound
+        Buffer.from([0x09, 0x00, 0x07]), Buffer.from('servers', 'utf8'), // List "servers"
+        Buffer.from([0x0a, 0x00, 0x00, 0x00, 0x01]), // Element type Compound, count 1
+        Buffer.from([0x08, 0x00, 0x04]), Buffer.from('name', 'utf8'), nameLen, nameBuf, // String "name"
+        Buffer.from([0x08, 0x00, 0x02]), Buffer.from('ip', 'utf8'), ipLen, ipBuf, // String "ip"
+        Buffer.from([0x01, 0x00, 0x06]), Buffer.from('hidden', 'utf8'), Buffer.from([0x00]), // Byte "hidden" = 0
+        Buffer.from([0x00]), // TAG_End for item
+        Buffer.from([0x00])  // TAG_End for root
+    ]);
+};
+
+/**
+ * Modifica servers.dat con el host:port enrutado, creando respaldo .original si no existe.
+ * @param {string} instancePath 
+ * @param {string} targetHostPort 
+ * @param {string} instanceName 
+ */
+const updateServersDat = (instancePath, targetHostPort, instanceName = 'MDK Server') => {
+    const serversDatPath = path.join(instancePath, 'servers.dat');
+    const serversDatBackup = path.join(instancePath, 'servers.dat.original');
+
+    try {
+        if (fs.existsSync(serversDatPath)) {
+            // Respaldar original si no existe respaldo previo
+            if (!fs.existsSync(serversDatBackup)) {
+                fs.copyFileSync(serversDatPath, serversDatBackup);
+                console.log(`[DualStack] 💾 Respaldo creado: ${serversDatBackup}`);
+            }
+
+            let buf = fs.readFileSync(serversDatPath);
+            const marker = Buffer.from([0x08, 0x00, 0x02, 0x69, 0x70]); // TAG_String "ip"
+            let idx = buf.indexOf(marker);
+
+            if (idx !== -1) {
+                let lenIdx = idx + marker.length;
+                let oldLen = buf.readUInt16BE(lenIdx);
+                let strIdx = lenIdx + 2;
+
+                let newIpBuf = Buffer.from(targetHostPort, 'utf8');
+                let newLenBuf = Buffer.alloc(2);
+                newLenBuf.writeUInt16BE(newIpBuf.length, 0);
+
+                let updatedBuf = Buffer.concat([
+                    buf.slice(0, lenIdx),
+                    newLenBuf,
+                    newIpBuf,
+                    buf.slice(strIdx + oldLen)
+                ]);
+
+                fs.writeFileSync(serversDatPath, updatedBuf);
+                console.log(`[DualStack] 🎮 servers.dat actualizado con IP: ${targetHostPort}`);
+                return true;
+            }
+        }
+
+        // Si no existía o no contenía la etiqueta "ip", generar un servers.dat limpio
+        const newBuf = createServersDatBuffer(instanceName, targetHostPort);
+        fs.writeFileSync(serversDatPath, newBuf);
+        console.log(`[DualStack] 🎮 servers.dat generado con IP: ${targetHostPort}`);
+        return true;
+    } catch (e) {
+        console.warn(`[DualStack] Aviso al modificar servers.dat:`, e.message || e);
+        return false;
+    }
+};
+
+/**
+ * Modifica todos los archivos de personalización de FancyMenu que contengan [action_type:joinserver]
+ * @param {string} instancePath 
+ * @param {string} targetHostPort 
+ */
+const updateFancyMenuCustomizations = (instancePath, targetHostPort) => {
+    const fmDir = path.join(instancePath, 'config', 'fancymenu', 'customization');
+    if (!fs.existsSync(fmDir)) return;
+
+    try {
+        const files = fs.readdirSync(fmDir);
+        for (const file of files) {
+            if (!file.endsWith('.txt') || file.endsWith('.original')) continue;
+
+            const filePath = path.join(fmDir, file);
+            const backupPath = filePath + '.original';
+
+            try {
+                let content = fs.readFileSync(filePath, 'utf8');
+                const joinServerPattern = /(\[action_type:joinserver\]\s*=\s*)[^\r\n]+/g;
+
+                if (joinServerPattern.test(content)) {
+                    // Respaldar original si no existe
+                    if (!fs.existsSync(backupPath)) {
+                        fs.copyFileSync(filePath, backupPath);
+                        console.log(`[DualStack] 💾 Respaldo FancyMenu creado: ${backupPath}`);
+                    }
+
+                    // Reemplazar host:port en la acción de unirse al servidor
+                    content = content.replace(joinServerPattern, `$1${targetHostPort}`);
+                    fs.writeFileSync(filePath, content, 'utf8');
+                    console.log(`[DualStack] 🎨 FancyMenu [${file}] actualizado con host: ${targetHostPort}`);
+                }
+            } catch (err) {
+                console.warn(`[DualStack] Error al procesar archivo FancyMenu ${file}:`, err.message || err);
+            }
+        }
+    } catch (e) {
+        console.warn(`[DualStack] Error al escanear directorio FancyMenu:`, e.message || e);
+    }
+};
+
+/**
+ * Restaura los archivos originales (servers.dat y layouts de FancyMenu) si la instancia es externa
+ * o si se deshabilitó el modo local.
+ * @param {string} instancePath 
+ */
+const restoreOriginalNetworkFiles = (instancePath) => {
+    try {
+        // 1. Restaurar servers.dat
+        const serversDatPath = path.join(instancePath, 'servers.dat');
+        const serversDatBackup = path.join(instancePath, 'servers.dat.original');
+        if (fs.existsSync(serversDatBackup)) {
+            fs.copyFileSync(serversDatBackup, serversDatPath);
+            console.log(`[DualStack] 🔄 servers.dat restaurado desde original`);
+        }
+
+        // 2. Restaurar archivos FancyMenu
+        const fmDir = path.join(instancePath, 'config', 'fancymenu', 'customization');
+        if (fs.existsSync(fmDir)) {
+            const files = fs.readdirSync(fmDir);
+            for (const file of files) {
+                if (file.endsWith('.txt.original')) {
+                    const originalPath = path.join(fmDir, file);
+                    const targetPath = originalPath.slice(0, -9); // quita .original
+                    fs.copyFileSync(originalPath, targetPath);
+                    console.log(`[DualStack] 🔄 FancyMenu restaurado desde original: ${path.basename(targetPath)}`);
+                }
+            }
+        }
+    } catch (e) {
+        console.warn(`[DualStack] Error al restaurar archivos originales:`, e.message || e);
+    }
+};
+
+/**
+ * Aplica el enrutamiento Dual Stack completo (IPv6 directa o IPv4 Playit.gg de respaldo).
+ * @param {string} instancePath 
+ * @param {object} networkConfig 
+ * @param {string} instanceName 
+ */
+const applyDualStackRouting = async (instancePath, networkConfig, instanceName) => {
+    if (!networkConfig || networkConfig.mode !== 'internal') {
+        console.log(`[DualStack] Instancia "${instanceName}" en modo Externo/Remoto. Restaurando archivos originales si aplica.`);
+        restoreOriginalNetworkFiles(instancePath);
+        return;
+    }
+
+    const ipv6Host = networkConfig.ipv6_host || 'mc.mdkgameteam.xyz';
+    const ipv6Port = Number(networkConfig.ipv6_port) || 25565;
+    const ipv4Host = networkConfig.ipv4_host ? networkConfig.ipv4_host.trim() : '';
+    const ipv4Port = Number(networkConfig.ipv4_port) || 25565;
+
+    console.log(`[DualStack] Verificando conectividad IPv6 hacia [${ipv6Host}:${ipv6Port}]...`);
+    const isIpv6Ok = await checkIPv6Connectivity(ipv6Host, ipv6Port, 1500);
+
+    let chosenTarget = '';
+    if (isIpv6Ok) {
+        chosenTarget = `${ipv6Host}:${ipv6Port}`;
+        console.log(`[DualStack] 🚀 Conectividad IPv6 DIRECTA verificada exitosamente. Enrutando a: ${chosenTarget}`);
+    } else {
+        if (ipv4Host) {
+            chosenTarget = `${ipv4Host}:${ipv4Port}`;
+            console.log(`[DualStack] ⚡ Sin conectividad IPv6 directa (posible CGNAT de ISP). Enrutando vía túnel Playit.gg a: ${chosenTarget}`);
+        } else {
+            chosenTarget = `${ipv6Host}:${ipv6Port}`;
+            console.warn(`[DualStack] ⚠️ Sin IPv6 y no se especificó túnel IPv4. Manteniendo IPv6 como fallback: ${chosenTarget}`);
+        }
+    }
+
+    updateServersDat(instancePath, chosenTarget, instanceName);
+    updateFancyMenuCustomizations(instancePath, chosenTarget);
+};
+
+// ==================== END DUAL STACK ROUTING ENGINE ====================
 
 class Home {
     static id = "home";
@@ -771,6 +1006,13 @@ class Home {
         // Limpieza automática y migración inteligente in-place de mods (Opción 2: SHA-256)
         await this.cleanObsoleteInstanceFiles(localInstancePath, launchUrl, options.ignored, !!options.encrypt_mods);
 
+        // Enrutamiento inteligente Dual Stack (IPv6 Directa vs IPv4 Playit.gg)
+        try {
+            await applyDualStackRouting(localInstancePath, options.network, options.name);
+        } catch (err) {
+            console.warn('[DualStack] Aviso al aplicar enrutamiento previo al lanzamiento:', err.message || err);
+        }
+
         applyMjcHashPatch();
 
         let opt = {
@@ -873,10 +1115,17 @@ class Home {
             console.log(`${(speed / 1067008).toFixed(2)} Mb/s`)
         })
 
-        launch.on('patch', patch => {
+        launch.on('patch', async patch => {
             console.log(patch);
             ipcRenderer.send('main-window-progress-load')
             infoStarting.innerHTML = `Abriendo el juego...`
+
+            // Re-aplicar Dual Stack por si servers.dat o FancyMenu fueron sincronizados/descargados
+            try {
+                await applyDualStackRouting(localInstancePath, options.network, options.name);
+            } catch (err) {
+                console.warn('[DualStack] Aviso al re-aplicar enrutamiento en evento patch:', err.message || err);
+            }
         });
 
         let activeErrorPopup = null;
@@ -1202,6 +1451,9 @@ class Home {
 
             for (const file of localFiles) {
                 const normRel = file.relPath.toLowerCase();
+                // Preservar respaldos originales de red (servers.dat.original y FancyMenu *.txt.original)
+                if (normRel.endsWith('.original')) continue;
+
                 if (shouldCheckObsolete(normRel) && !serverFilesSet.has(normRel)) {
                     try {
                         fs.unlinkSync(file.fullPath);
