@@ -695,7 +695,7 @@ class Home {
                         let rScore = (this.ratingsCache[instance.name]?.average || 5.0).toFixed(1);
                         instancesListPopup.innerHTML += `
                             <div class="tooltip-container">
-                                <div id="${instance.name}" class="instance-elements${instance.name === configClient.instance_selct ? ' active-instance' : ''}">
+                                <div id="${instance.name}" data-instance-name="${instance.name}" class="instance-elements${instance.name === configClient.instance_selct ? ' active-instance' : ''}">
                                     <span class="instance-element-name">${instance.name}</span>
                                     ${ratingBadgeHtml}
                                 </div>
@@ -722,7 +722,7 @@ class Home {
             let target = e.target.closest('.instance-elements');
             if (target) {
                 let configClient = await this.db.readData('configClient');
-                let newInstanceSelect = target.id;
+                let newInstanceSelect = target.getAttribute('data-instance-name') || target.id;
                 let activeInstanceSelect = document.querySelector('.active-instance');
 
                 if (activeInstanceSelect) activeInstanceSelect.classList.remove('active-instance');
@@ -804,6 +804,7 @@ class Home {
 
             let instanceDiv = document.createElement('div');
             instanceDiv.id = instance.name;
+            instanceDiv.setAttribute('data-instance-name', instance.name);
             instanceDiv.className = `instance-main-item${instance.name === instanceSelect ? ' active-instance' : ''}`;
             instanceDiv.title = isRatingActive ? `${instance.name} (★ ${ratingScore})` : instance.name;
 
