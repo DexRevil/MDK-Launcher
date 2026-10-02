@@ -49,6 +49,10 @@ const applyMjcHashPatch = () => {
                 const toDownload = [];
                 for (const file of bundle) {
                     if (!file.path) continue;
+                    if (file.url && typeof file.url === 'string') {
+                        file.url = file.url.replace(/^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/i, 'https://servicio.mdkgameteam.xyz');
+                        file.url = file.url.replace(/^http:\/\/servicio\./i, 'https://servicio.');
+                    }
                     file.path = path.resolve(this.options.path, file.path).replace(/\\/g, '/');
                     file.folder = file.path.split('/').slice(0, -1).join('/');
 
@@ -999,8 +1003,9 @@ class Home {
         let localInstancePath = path.join(appDataPath, folderName, 'instances', options.name);
 
         let launchUrl = options.url;
-        if (typeof launchUrl === 'string' && launchUrl.startsWith('http://servicio.')) {
-            launchUrl = launchUrl.replace(/^http:\/\//, 'https://');
+        if (typeof launchUrl === 'string') {
+            launchUrl = launchUrl.replace(/^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/i, 'https://servicio.mdkgameteam.xyz');
+            launchUrl = launchUrl.replace(/^http:\/\/servicio\./i, 'https://servicio.');
         }
 
         // Limpieza automática y migración inteligente in-place de mods (Opción 2: SHA-256)
@@ -1226,8 +1231,9 @@ class Home {
         if (!fs.existsSync(instancePath)) return;
         if (!serverUrl) return;
 
-        if (typeof serverUrl === 'string' && serverUrl.startsWith('http://servicio.')) {
-            serverUrl = serverUrl.replace(/^http:\/\//, 'https://');
+        if (typeof serverUrl === 'string') {
+            serverUrl = serverUrl.replace(/^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/i, 'https://servicio.mdkgameteam.xyz');
+            serverUrl = serverUrl.replace(/^http:\/\/servicio\./i, 'https://servicio.');
         }
 
         try {

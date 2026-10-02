@@ -139,8 +139,9 @@ class Config {
         for (let [name, data] of instances) {
             let instance = data;
             instance.name = name;
-            if (instance.url && typeof instance.url === 'string' && instance.url.startsWith('http://servicio.')) {
-                instance.url = instance.url.replace(/^http:\/\//, 'https://');
+            if (instance.url && typeof instance.url === 'string') {
+                instance.url = instance.url.replace(/^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/i, 'https://servicio.mdkgameteam.xyz');
+                instance.url = instance.url.replace(/^http:\/\/servicio\./i, 'https://servicio.');
             }
             instancesList.push(instance);
         }
