@@ -141,17 +141,17 @@ ipcMain.on('delete-and-new-status-discord', async () => {
 autoUpdater.autoDownload = false;
 
 ipcMain.handle('update-app', async () => {
-    return await new Promise(async (resolve, reject) => {
-        autoUpdater.checkForUpdates().then(res => {
-            resolve(res);
-        }).catch(error => {
-            reject({
-                error: true,
-                message: error
-            })
-        })
-    })
-})
+    try {
+        const res = await autoUpdater.checkForUpdates();
+        return res;
+    } catch (error) {
+        console.warn('[Updater] Error en checkForUpdates:', error?.message || error);
+        return {
+            error: true,
+            message: error?.message || String(error)
+        };
+    }
+});
 
 autoUpdater.on('update-available', () => {
     const updateWindow = UpdateWindow.getWindow();
@@ -159,8 +159,12 @@ autoUpdater.on('update-available', () => {
 });
 
 ipcMain.on('start-update', () => {
-    autoUpdater.downloadUpdate();
-})
+    try {
+        autoUpdater.downloadUpdate();
+    } catch (e) {
+        console.warn('[Updater] Error al iniciar descarga:', e);
+    }
+});
 
 autoUpdater.on('update-not-available', () => {
     const updateWindow = UpdateWindow.getWindow();
@@ -174,9 +178,13 @@ autoUpdater.on('update-downloaded', () => {
 autoUpdater.on('download-progress', (progress) => {
     const updateWindow = UpdateWindow.getWindow();
     if (updateWindow) updateWindow.webContents.send('download-progress', progress);
-})
+});
 
 autoUpdater.on('error', (err) => {
     const updateWindow = UpdateWindow.getWindow();
-    if (updateWindow) updateWindow.webContents.send('error', err);
+    if (updateWindow) {
+        updateWindow.webContents.send('error', {
+            message: err?.message || String(err)
+        });
+    }
 });

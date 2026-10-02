@@ -13,7 +13,7 @@ try {
     try {
         pkg = require("../package.json");
     } catch (e2) {
-        pkg = { preductname: "MDK Launcher", version: "3.8.5" };
+        pkg = { preductname: "MDK Launcher", version: "3.8.6" };
     }
 }
 let dev = process.env.DEV_TOOL === 'open';

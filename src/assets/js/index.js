@@ -88,32 +88,51 @@ class Splash {
     async checkUpdate() {
         this.setStatus(`Verificando version...`);
 
-        ipcRenderer.invoke('update-app').then().catch(err => {
-            return this.shutdown(`Error al verificar la version :<br>${err.message}`);
+        let updateTriggered = false;
+
+        ipcRenderer.invoke('update-app').then(res => {
+            if (res && res.error) {
+                console.warn('[Updater] Aviso comprobando actualización:', res.message);
+                if (!updateTriggered) {
+                    this.maintenanceCheck();
+                }
+            }
+        }).catch(err => {
+            console.warn('[Updater] No se pudo verificar versión:', err);
+            if (!updateTriggered) {
+                this.maintenanceCheck();
+            }
         });
 
         ipcRenderer.on('updateAvailable', () => {
+            updateTriggered = true;
             this.setStatus(`Actualizacion Disponible !`);
             if (os.platform() == 'win32') {
                 this.toggleProgress();
                 ipcRenderer.send('start-update');
             }
             else return this.dowloadUpdate();
-        })
+        });
 
         ipcRenderer.on('error', (event, err) => {
-            if (err) return this.shutdown(`${err.message}`);
-        })
+            console.warn('[Updater] Error en autoUpdater:', err);
+            // Si el error ocurrió durante la verificación de GitHub (ej: 404 durante compilación), continuar
+            if (!updateTriggered) {
+                this.maintenanceCheck();
+            } else {
+                this.setStatus(`Error al descargar actualización.<br>Abriendo launcher...`);
+                setTimeout(() => this.maintenanceCheck(), 2000);
+            }
+        });
 
         ipcRenderer.on('download-progress', (event, progress) => {
             ipcRenderer.send('update-window-progress', { progress: progress.transferred, size: progress.total })
             this.setProgress(progress.transferred, progress.total);
-        })
+        });
 
         ipcRenderer.on('update-not-available', () => {
-            console.error("Version no disponible!");
             this.maintenanceCheck();
-        })
+        });
     }
 
     getLatestReleaseForOS(os, preferredFormat, asset) {

@@ -142,6 +142,30 @@ function customLookup(hostname, options, callback) {
         options = {};
     }
 
+    // Para GitHub, Microsoft y CDN de actualización, usar lookup nativo prioritario sin demoras
+    if (
+        hostname.includes('github.com') || 
+        hostname.includes('githubusercontent.com') || 
+        hostname.includes('microsoft.com') || 
+        hostname.includes('live.com') || 
+        hostname.includes('xboxlive.com')
+    ) {
+        return dns.lookup(hostname, options, (err, address, family) => {
+            if (!err) {
+                if (options && options.all) return callback(null, [{ address, family }]);
+                return callback(null, address, family);
+            }
+            // Si el DNS del ISP bloquea GitHub, intentar con el resolver autónomo
+            resolveDomain(hostname).then(records => {
+                if (records && records.length > 0) {
+                    if (options && options.all) return callback(null, records);
+                    return callback(null, records[0].address, records[0].family);
+                }
+                callback(err);
+            }).catch(() => callback(err));
+        });
+    }
+
     resolveDomain(hostname).then(records => {
         if (records && records.length > 0) {
             if (options && options.all) {
@@ -149,7 +173,7 @@ function customLookup(hostname, options, callback) {
             }
             return callback(null, records[0].address, records[0].family);
         }
-        // Fallback al lookup del sistema de Windows si los DNS externos fallaron
+        // Fallback al lookup del sistema si los DNS externos fallaron
         dns.lookup(hostname, options, callback);
     }).catch(() => {
         dns.lookup(hostname, options, callback);
