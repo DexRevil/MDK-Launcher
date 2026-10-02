@@ -772,6 +772,9 @@ class Home {
                     instanceSelect = null;
                 }
             }
+        } else if (configClient?.instance_selct) {
+            configClient.instance_selct = null;
+            await this.db.updateData('configClient', configClient);
         }
 
         // Actualizar fondo y clasificación de la instancia activa solo si hay una seleccionada
@@ -876,12 +879,16 @@ class Home {
         const playInstance = document.querySelector('.play-instance');
         if (!playBtn || !playInstance) return;
 
-        if (!instanceName) {
+        let instancesList = await config.getInstanceList();
+
+        if (instanceName === undefined) {
             let configClient = await this.db.readData('configClient');
             instanceName = configClient?.instance_selct;
         }
 
-        if (!instanceName) {
+        let validInstance = Array.isArray(instancesList) ? instancesList.find(i => i && i.name === instanceName) : null;
+
+        if (!instanceName || !validInstance) {
             playBtn.innerHTML = 'Seleccione Instancia';
             playInstance.classList.remove('is-download');
             playInstance.classList.add('no-instance');

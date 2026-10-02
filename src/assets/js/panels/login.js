@@ -274,7 +274,7 @@ class Login {
         // Si configClient no existe (primera ejecución), crear uno por defecto
         if (!configClient) {
             configClient = {
-                instance_selct: 'Vanilla',
+                instance_selct: null,
                 account_selected: null,
                 launcher_config: {},
                 java_config: { java_path: '', java_memory: { min: 1, max: 2 } },
