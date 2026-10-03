@@ -25,7 +25,10 @@ const computeFileHash = (filePath, algorithm = 'sha256') => {
     });
 };
 
+let activeDualStackVariant = 'ipv4';
+
 // Monkey-patch a minecraft-java-core para soportar verificación nativa de hashes SHA-256 (64 hex)
+// y enrutamiento directo de variantes FancyMenu (descarga solo la variante que corresponde al cliente)
 const applyMjcHashPatch = () => {
     try {
         let bundleModule = null;
@@ -47,12 +50,40 @@ const applyMjcHashPatch = () => {
             MinecraftBundle.prototype._sha256Patched = true;
             MinecraftBundle.prototype.checkBundle = async function(bundle) {
                 const toDownload = [];
+                const chosenVariant = activeDualStackVariant || 'ipv4';
+                const rejectedVariant = chosenVariant === 'ipv6' ? 'ipv4' : 'ipv6';
+
                 for (const file of bundle) {
                     if (!file.path) continue;
                     if (file.url && typeof file.url === 'string') {
                         file.url = file.url.replace(/^https?:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?/i, 'https://servicio.mdkgameteam.xyz');
                         file.url = file.url.replace(/^http:\/\/servicio\./i, 'https://servicio.');
                     }
+
+                    // Interceptar variantes de FancyMenu en el manifiesto (ej: config/fancymenu/customization/bingo_menu.ipv6.txt)
+                    const normRelForMatch = file.path.replace(/\\/g, '/');
+                    const fmVariantMatch = normRelForMatch.match(/(?:^|\/)config\/fancymenu\/customization\/(.+?)\.(ipv6|ipv4)\.txt$/i);
+
+                    if (fmVariantMatch && chosenVariant !== 'external') {
+                        const baseNameOnly = fmVariantMatch[1];
+                        const fileVariant = fmVariantMatch[2].toLowerCase();
+                        const baseFileName = `${baseNameOnly}.txt`;
+
+                        // 1. Si es la variante que NO corresponde a la conexión del cliente, ignorarla por completo (NO descargarla)
+                        if (fileVariant === rejectedVariant) {
+                            try {
+                                const staleRejectedPath = path.resolve(this.options.path, file.path);
+                                if (fs.existsSync(staleRejectedPath)) fs.unlinkSync(staleRejectedPath);
+                            } catch (_) {}
+                            continue;
+                        }
+
+                        // 2. Si es la variante SELECCIONADA (ej: ipv6 si el cliente tiene IPv6 nativa):
+                        // Redirigir la ruta relativa para que se descargue directamente como el archivo base (ej: bingo_menu.txt)
+                        file.path = file.path.replace(/\.(ipv6|ipv4)\.txt$/i, '.txt');
+                        console.log(`[DualStack] 📥 Descarga dirigida FancyMenu: [${baseNameOnly}.${fileVariant}.txt] -> [${baseFileName}]`);
+                    }
+
                     file.path = path.resolve(this.options.path, file.path).replace(/\\/g, '/');
                     file.folder = file.path.split('/').slice(0, -1).join('/');
 
@@ -93,7 +124,7 @@ const applyMjcHashPatch = () => {
                 }
                 return toDownload;
             };
-            console.log('[Patch] ✅ Soporte para SHA-256 habilitado en minecraft-java-core (checkBundle).');
+            console.log('[Patch] ✅ Soporte para SHA-256 y filtrado selectivo DualStack habilitado en minecraft-java-core.');
         }
     } catch (e) {
         console.warn('[Patch] Aviso: no se pudo parchear checkBundle de minecraft-java-core:', e.message || e);
@@ -240,11 +271,6 @@ const updateFancyMenuCustomizations = (instancePath, selectedVariant, targetHost
         // Buscar archivos que correspondan a la variante seleccionada (ej: bingo_menu.ipv6.txt)
         const variantFiles = files.filter(f => f.endsWith(variantSuffix));
 
-        if (variantFiles.length === 0) {
-            console.log(`[DualStack] FancyMenu: no se encontraron variantes ${variantSuffix}. Manteniendo archivos intactos.`);
-            return;
-        }
-
         for (const vFile of variantFiles) {
             const baseFileName = vFile.slice(0, -variantSuffix.length) + '.txt';
             const targetPath = path.join(fmDir, baseFileName);
@@ -261,22 +287,8 @@ const updateFancyMenuCustomizations = (instancePath, selectedVariant, targetHost
                     console.log(`[DualStack] 💾 Respaldo limpio FancyMenu creado en carpeta externa: ${backupFilePath}`);
                 }
 
-                // Si existía un respaldo .original antiguo en customization/, migrarlo a .backup/ y limpiarlo
-                const legacyOriginal = targetPath + '.original';
-                if (fs.existsSync(legacyOriginal)) {
-                    if (!fs.existsSync(backupFilePath)) {
-                        if (!fs.existsSync(backupDir)) {
-                            fs.mkdirSync(backupDir, { recursive: true });
-                        }
-                        fs.copyFileSync(legacyOriginal, backupFilePath);
-                    }
-                    try { fs.unlinkSync(legacyOriginal); } catch (_) {}
-                }
-
                 // 2. Leer la variante correspondiente del servidor
                 let content = fs.readFileSync(sourceVariantPath, 'utf8');
-
-                // Asegurar que el menú esté habilitado (is_enabled = true) al activarlo en el archivo destino
                 content = content.replace(/(\bis_enabled\s*=\s*)false/i, '$1true');
 
                 // 3. Escribir limpiamente en el archivo destino (ej: bingo_menu.txt)
@@ -284,6 +296,16 @@ const updateFancyMenuCustomizations = (instancePath, selectedVariant, targetHost
                 console.log(`[DualStack] 🎨 FancyMenu [${baseFileName}] activado con variante [${selectedVariant}] (${targetHostPort})`);
             } catch (err) {
                 console.warn(`[DualStack] Error al aplicar variante FancyMenu ${vFile}:`, err.message || err);
+            }
+        }
+
+        // Limpiar cualquier archivo residual .ipv6.txt o .ipv4.txt para que en la carpeta solo quede el archivo base .txt
+        for (const f of files) {
+            if (f.endsWith('.ipv6.txt') || f.endsWith('.ipv4.txt')) {
+                try {
+                    fs.unlinkSync(path.join(fmDir, f));
+                    console.log(`[DualStack] 🧹 Archivo de variante temporal eliminado: ${f}`);
+                } catch (_) {}
             }
         }
     } catch (e) {
@@ -350,7 +372,8 @@ const applyDualStackRouting = async (instancePath, networkConfig, instanceName) 
     if (!networkConfig || networkConfig.mode !== 'internal') {
         console.log(`[DualStack] Instancia "${instanceName}" en modo Externo/Remoto. Restaurando archivos originales si aplica.`);
         restoreOriginalNetworkFiles(instancePath);
-        return;
+        activeDualStackVariant = 'external';
+        return { isIpv6Ok: false, variant: 'external', target: '' };
     }
 
     const ipv6Host = networkConfig.ipv6_host || 'mc.mdkgameteam.xyz';
@@ -379,11 +402,15 @@ const applyDualStackRouting = async (instancePath, networkConfig, instanceName) 
         }
     }
 
+    activeDualStackVariant = selectedVariant;
+
     // 1. Modificar servers.dat (para servidores estándar o instancias sin FancyMenu)
     updateServersDat(instancePath, chosenTarget, instanceName);
 
-    // 2. Si la instancia tiene FancyMenu con variantes .ipv6.txt / .ipv4.txt, activar la variante correspondiente
+    // 2. Si la instancia tiene FancyMenu y quedaron variantes locales, limpiarlas y asegurar base
     updateFancyMenuCustomizations(instancePath, selectedVariant, chosenTarget);
+
+    return { isIpv6Ok, variant: selectedVariant, target: chosenTarget };
 };
 
 // ==================== END DUAL STACK ROUTING ENGINE ====================
@@ -1068,15 +1095,15 @@ class Home {
             launchUrl = launchUrl.replace(/^http:\/\/servicio\./i, 'https://servicio.');
         }
 
-        // Limpieza automática y migración inteligente in-place de mods (Opción 2: SHA-256)
-        await this.cleanObsoleteInstanceFiles(localInstancePath, launchUrl, options.ignored, !!options.encrypt_mods);
-
         // Enrutamiento inteligente Dual Stack (IPv6 Directa vs IPv4 Playit.gg)
         try {
             await applyDualStackRouting(localInstancePath, options.network, options.name);
         } catch (err) {
             console.warn('[DualStack] Aviso al aplicar enrutamiento previo al lanzamiento:', err.message || err);
         }
+
+        // Limpieza automática y migración inteligente in-place de mods (Opción 2: SHA-256)
+        await this.cleanObsoleteInstanceFiles(localInstancePath, launchUrl, options.ignored, !!options.encrypt_mods);
 
         applyMjcHashPatch();
 
@@ -1520,6 +1547,15 @@ class Home {
                 const normRel = file.relPath.toLowerCase();
                 // Preservar respaldos originales de red (servers.dat.original, FancyMenu *.txt.original y .backup/)
                 if (normRel.endsWith('.original') || normRel.includes('/.backup/') || normRel.startsWith('.backup/')) continue;
+
+                // Eliminar cualquier archivo residual de variantes .ipv6.txt o .ipv4.txt para dejar solo el archivo base .txt
+                if (normRel.endsWith('.ipv6.txt') || normRel.endsWith('.ipv4.txt')) {
+                    try {
+                        fs.unlinkSync(file.fullPath);
+                        console.log(`[CleanSync] 🗑️ Variante residual eliminada: ${file.relPath}`);
+                    } catch (_) {}
+                    continue;
+                }
 
                 // Preservar archivos de menú generados localmente por DualStack (ej: bingo_menu.txt a partir de sus variantes en el servidor)
                 if (normRel.endsWith('.txt')) {
