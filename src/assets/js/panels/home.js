@@ -1521,6 +1521,14 @@ class Home {
                 // Preservar respaldos originales de red (servers.dat.original, FancyMenu *.txt.original y .backup/)
                 if (normRel.endsWith('.original') || normRel.includes('/.backup/') || normRel.startsWith('.backup/')) continue;
 
+                // Preservar archivos de menú generados localmente por DualStack (ej: bingo_menu.txt a partir de sus variantes en el servidor)
+                if (normRel.endsWith('.txt')) {
+                    const baseWithoutExt = normRel.slice(0, -4);
+                    if (serverFilesSet.has(`${baseWithoutExt}.ipv6.txt`) || serverFilesSet.has(`${baseWithoutExt}.ipv4.txt`)) {
+                        continue;
+                    }
+                }
+
                 if (shouldCheckObsolete(normRel) && !serverFilesSet.has(normRel)) {
                     try {
                         fs.unlinkSync(file.fullPath);
