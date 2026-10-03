@@ -221,44 +221,73 @@ const updateServersDat = (instancePath, targetHostPort, instanceName = 'MDK Serv
 };
 
 /**
- * Modifica todos los archivos de personalización de FancyMenu que contengan [action_type:joinserver]
+ * Gestiona el intercambio limpio de variantes FancyMenu (ej. bingo_menu.ipv6.txt o bingo_menu.ipv4.txt -> bingo_menu.txt).
+ * Si no existen variantes, no altera ningún archivo FancyMenu (para instancias que solo usan servers.dat).
  * @param {string} instancePath 
+ * @param {string} selectedVariant ('ipv6' | 'ipv4')
  * @param {string} targetHostPort 
  */
-const updateFancyMenuCustomizations = (instancePath, targetHostPort) => {
+const updateFancyMenuCustomizations = (instancePath, selectedVariant, targetHostPort) => {
     const fmDir = path.join(instancePath, 'config', 'fancymenu', 'customization');
     if (!fs.existsSync(fmDir)) return;
 
+    const backupDir = path.join(instancePath, 'config', 'fancymenu', '.backup');
+
     try {
         const files = fs.readdirSync(fmDir);
-        for (const file of files) {
-            if (!file.endsWith('.txt') || file.endsWith('.original')) continue;
+        const variantSuffix = `.${selectedVariant}.txt`;
 
-            const filePath = path.join(fmDir, file);
-            const backupPath = filePath + '.original';
+        // Buscar archivos que correspondan a la variante seleccionada (ej: bingo_menu.ipv6.txt)
+        const variantFiles = files.filter(f => f.endsWith(variantSuffix));
+
+        if (variantFiles.length === 0) {
+            console.log(`[DualStack] FancyMenu: no se encontraron variantes ${variantSuffix}. Manteniendo archivos intactos.`);
+            return;
+        }
+
+        for (const vFile of variantFiles) {
+            const baseFileName = vFile.slice(0, -variantSuffix.length) + '.txt';
+            const targetPath = path.join(fmDir, baseFileName);
+            const sourceVariantPath = path.join(fmDir, vFile);
+            const backupFilePath = path.join(backupDir, baseFileName);
 
             try {
-                let content = fs.readFileSync(filePath, 'utf8');
-                const joinServerPattern = /(\[action_type:joinserver\]\s*=\s*)[^\r\n]+/g;
-
-                if (joinServerPattern.test(content)) {
-                    // Respaldar original si no existe
-                    if (!fs.existsSync(backupPath)) {
-                        fs.copyFileSync(filePath, backupPath);
-                        console.log(`[DualStack] 💾 Respaldo FancyMenu creado: ${backupPath}`);
+                // 1. Si existe un archivo base y aún no tiene respaldo externo en .backup/, crearlo
+                if (fs.existsSync(targetPath) && !fs.existsSync(backupFilePath)) {
+                    if (!fs.existsSync(backupDir)) {
+                        fs.mkdirSync(backupDir, { recursive: true });
                     }
-
-                    // Reemplazar host:port en la acción de unirse al servidor
-                    content = content.replace(joinServerPattern, `$1${targetHostPort}`);
-                    fs.writeFileSync(filePath, content, 'utf8');
-                    console.log(`[DualStack] 🎨 FancyMenu [${file}] actualizado con host: ${targetHostPort}`);
+                    fs.copyFileSync(targetPath, backupFilePath);
+                    console.log(`[DualStack] 💾 Respaldo limpio FancyMenu creado en carpeta externa: ${backupFilePath}`);
                 }
+
+                // Si existía un respaldo .original antiguo en customization/, migrarlo a .backup/ y limpiarlo
+                const legacyOriginal = targetPath + '.original';
+                if (fs.existsSync(legacyOriginal)) {
+                    if (!fs.existsSync(backupFilePath)) {
+                        if (!fs.existsSync(backupDir)) {
+                            fs.mkdirSync(backupDir, { recursive: true });
+                        }
+                        fs.copyFileSync(legacyOriginal, backupFilePath);
+                    }
+                    try { fs.unlinkSync(legacyOriginal); } catch (_) {}
+                }
+
+                // 2. Leer la variante correspondiente del servidor
+                let content = fs.readFileSync(sourceVariantPath, 'utf8');
+
+                // Asegurar que el menú esté habilitado (is_enabled = true) al activarlo en el archivo destino
+                content = content.replace(/(\bis_enabled\s*=\s*)false/i, '$1true');
+
+                // 3. Escribir limpiamente en el archivo destino (ej: bingo_menu.txt)
+                fs.writeFileSync(targetPath, content, 'utf8');
+                console.log(`[DualStack] 🎨 FancyMenu [${baseFileName}] activado con variante [${selectedVariant}] (${targetHostPort})`);
             } catch (err) {
-                console.warn(`[DualStack] Error al procesar archivo FancyMenu ${file}:`, err.message || err);
+                console.warn(`[DualStack] Error al aplicar variante FancyMenu ${vFile}:`, err.message || err);
             }
         }
     } catch (e) {
-        console.warn(`[DualStack] Error al escanear directorio FancyMenu:`, e.message || e);
+        console.warn(`[DualStack] Error al procesar directorio FancyMenu:`, e.message || e);
     }
 };
 
@@ -277,8 +306,23 @@ const restoreOriginalNetworkFiles = (instancePath) => {
             console.log(`[DualStack] 🔄 servers.dat restaurado desde original`);
         }
 
-        // 2. Restaurar archivos FancyMenu
+        // 2. Restaurar archivos FancyMenu desde .backup/
         const fmDir = path.join(instancePath, 'config', 'fancymenu', 'customization');
+        const backupDir = path.join(instancePath, 'config', 'fancymenu', '.backup');
+        
+        if (fs.existsSync(backupDir) && fs.existsSync(fmDir)) {
+            const backupFiles = fs.readdirSync(backupDir);
+            for (const bFile of backupFiles) {
+                if (bFile.endsWith('.txt')) {
+                    const backupFilePath = path.join(backupDir, bFile);
+                    const targetPath = path.join(fmDir, bFile);
+                    fs.copyFileSync(backupFilePath, targetPath);
+                    console.log(`[DualStack] 🔄 FancyMenu [${bFile}] restaurado desde respaldo limpio (.backup)`);
+                }
+            }
+        }
+
+        // Compatibilidad hacia atrás si quedan archivos .original en customization/
         if (fs.existsSync(fmDir)) {
             const files = fs.readdirSync(fmDir);
             for (const file of files) {
@@ -286,7 +330,8 @@ const restoreOriginalNetworkFiles = (instancePath) => {
                     const originalPath = path.join(fmDir, file);
                     const targetPath = originalPath.slice(0, -9); // quita .original
                     fs.copyFileSync(originalPath, targetPath);
-                    console.log(`[DualStack] 🔄 FancyMenu restaurado desde original: ${path.basename(targetPath)}`);
+                    console.log(`[DualStack] 🔄 FancyMenu restaurado desde legacy original: ${path.basename(targetPath)}`);
+                    try { fs.unlinkSync(originalPath); } catch (_) {}
                 }
             }
         }
@@ -317,10 +362,14 @@ const applyDualStackRouting = async (instancePath, networkConfig, instanceName) 
     const isIpv6Ok = await checkIPv6Connectivity(ipv6Host, ipv6Port, 1500);
 
     let chosenTarget = '';
+    let selectedVariant = 'ipv4';
+
     if (isIpv6Ok) {
         chosenTarget = `${ipv6Host}:${ipv6Port}`;
+        selectedVariant = 'ipv6';
         console.log(`[DualStack] 🚀 Conectividad IPv6 DIRECTA verificada exitosamente. Enrutando a: ${chosenTarget}`);
     } else {
+        selectedVariant = 'ipv4';
         if (ipv4Host) {
             chosenTarget = `${ipv4Host}:${ipv4Port}`;
             console.log(`[DualStack] ⚡ Sin conectividad IPv6 directa (posible CGNAT de ISP). Enrutando vía túnel Playit.gg a: ${chosenTarget}`);
@@ -330,8 +379,11 @@ const applyDualStackRouting = async (instancePath, networkConfig, instanceName) 
         }
     }
 
+    // 1. Modificar servers.dat (para servidores estándar o instancias sin FancyMenu)
     updateServersDat(instancePath, chosenTarget, instanceName);
-    updateFancyMenuCustomizations(instancePath, chosenTarget);
+
+    // 2. Si la instancia tiene FancyMenu con variantes .ipv6.txt / .ipv4.txt, activar la variante correspondiente
+    updateFancyMenuCustomizations(instancePath, selectedVariant, chosenTarget);
 };
 
 // ==================== END DUAL STACK ROUTING ENGINE ====================
@@ -1353,7 +1405,7 @@ class Home {
                 }
             }
 
-            // Lista de carpetas y archivos locales que NUNCA deben borrarse (archivos del usuario del juego)
+            // Lista de carpetas y archivos locales que NUNCA deben borrarse (archivos del usuario del juego y respaldos de red)
             const defaultProtected = [
                 'saves',
                 'screenshots',
@@ -1369,7 +1421,8 @@ class Home {
                 'realms_persistence.json',
                 'natives',
                 '.fabric',
-                '.mixin.out'
+                '.mixin.out',
+                '.backup'
             ];
 
             const allIgnored = [...(ignoredList || []), ...defaultProtected];
@@ -1465,8 +1518,8 @@ class Home {
 
             for (const file of localFiles) {
                 const normRel = file.relPath.toLowerCase();
-                // Preservar respaldos originales de red (servers.dat.original y FancyMenu *.txt.original)
-                if (normRel.endsWith('.original')) continue;
+                // Preservar respaldos originales de red (servers.dat.original, FancyMenu *.txt.original y .backup/)
+                if (normRel.endsWith('.original') || normRel.includes('/.backup/') || normRel.startsWith('.backup/')) continue;
 
                 if (shouldCheckObsolete(normRel) && !serverFilesSet.has(normRel)) {
                     try {
