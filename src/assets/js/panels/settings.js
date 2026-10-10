@@ -3,7 +3,7 @@
  * @license CC-BY-NC 4.0 - https://creativecommons.org/licenses/by-nc/4.0
  */
 
-import { changePanel, accountSelect, database, Slider, config, setStatus, popup, appdata, setBackground, pkg } from '../utils.js'
+import { changePanel, accountSelect, database, Slider, config, setStatus, popup, appdata, setBackground, pkg, getGamePaths } from '../utils.js'
 const { ipcRenderer, shell } = require('electron');
 const os = require('os');
 const fs = require('fs');
@@ -16,6 +16,7 @@ class Settings {
         this.db = new database();
         this.navBTN()
         this.accounts()
+        this.instancesPath()
         this.instancesManagement()
         this.ram()
         this.javaPath()
@@ -48,6 +49,7 @@ class Settings {
                 if (targetTab) targetTab.classList.add('active-container-settings');
 
                 if (id === 'instances') {
+                    this.updateInstancePathDisplay();
                     this.loadInstancesClientList();
                 }
             }
@@ -346,6 +348,263 @@ class Settings {
         }
     }
 
+    async updateInstancePathDisplay() {
+        const pathInput = document.getElementById('instance-path-display');
+        const badge = document.getElementById('instance-path-status-badge');
+        if (!pathInput) return;
+
+        const paths = await getGamePaths(this.config);
+        pathInput.value = paths.instancesDir;
+
+        if (badge) {
+            if (paths.isCustom) {
+                badge.className = 'instance-path-badge badge-custom';
+                badge.innerHTML = '⚡ Ruta Personalizada';
+            } else {
+                badge.className = 'instance-path-badge badge-default';
+                badge.innerHTML = '📂 Ruta Predeterminada';
+            }
+        }
+    }
+
+    async instancesPath() {
+        await this.updateInstancePathDisplay();
+
+        const btnChange = document.getElementById('btn-change-instance-path');
+        const btnOpen = document.getElementById('btn-open-instance-path');
+        const btnReset = document.getElementById('btn-reset-instance-path');
+
+        if (btnOpen) {
+            btnOpen.addEventListener('click', async () => {
+                const paths = await getGamePaths(this.config);
+                await ipcRenderer.invoke('open-directory', paths.instancesDir);
+            });
+        }
+
+        if (btnChange) {
+            btnChange.addEventListener('click', async () => {
+                const currentPaths = await getGamePaths(this.config);
+                const selectedDir = await ipcRenderer.invoke('select-directory', currentPaths.instancesDir || currentPaths.rootDir);
+                if (!selectedDir) return;
+
+                const normalizedSelected = selectedDir.replace(/\\/g, '/').replace(/\/+$/, '');
+                const currentInstancesNormalized = currentPaths.instancesDir.replace(/\\/g, '/').replace(/\/+$/, '');
+                const currentRootNormalized = currentPaths.rootDir.replace(/\\/g, '/').replace(/\/+$/, '');
+
+                if (normalizedSelected === currentInstancesNormalized || normalizedSelected === currentRootNormalized) {
+                    return;
+                }
+
+                let newInstancesDir = normalizedSelected;
+                if (path.basename(normalizedSelected).toLowerCase() !== 'instances') {
+                    newInstancesDir = path.join(normalizedSelected, 'instances').replace(/\\/g, '/');
+                }
+
+                let existingInstances = [];
+                let totalSize = 0;
+                if (fs.existsSync(currentPaths.instancesDir)) {
+                    try {
+                        const entries = fs.readdirSync(currentPaths.instancesDir, { withFileTypes: true });
+                        for (const entry of entries) {
+                            if (entry.isDirectory()) {
+                                const instP = path.join(currentPaths.instancesDir, entry.name);
+                                const sz = this.calculateFolderSize(instP);
+                                if (sz > 0) {
+                                    existingInstances.push({ name: entry.name, path: instP, size: sz });
+                                    totalSize += sz;
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('Error al verificar instancias existentes:', e);
+                    }
+                }
+
+                if (existingInstances.length > 0) {
+                    this.pendingPathChange = {
+                        newRawPath: normalizedSelected,
+                        newInstancesDir: newInstancesDir,
+                        oldInstancesDir: currentPaths.instancesDir
+                    };
+                    this.promptMoveInstances(existingInstances.length, this.formatBytes(totalSize), newInstancesDir);
+                } else {
+                    await this.applyNewInstancePath(normalizedSelected);
+                }
+            });
+        }
+
+        if (btnReset) {
+            btnReset.addEventListener('click', async () => {
+                const currentPaths = await getGamePaths(this.config);
+                if (!currentPaths.isCustom) {
+                    let p = new popup();
+                    p.openPopup({
+                        title: 'Ruta de Instancias',
+                        content: 'Ya estás utilizando la ruta predeterminada de la aplicación.',
+                        color: 'var(--color)',
+                        options: true
+                    });
+                    return;
+                }
+                const resetModal = document.getElementById('instanceResetModal');
+                if (resetModal) resetModal.style.display = 'flex';
+            });
+        }
+
+        document.addEventListener('click', async (e) => {
+            if (e.target && (e.target.id === 'btnCancelResetInstancePath' || e.target.closest('#btnCancelResetInstancePath'))) {
+                const resetModal = document.getElementById('instanceResetModal');
+                if (resetModal) resetModal.style.display = 'none';
+            } else if (e.target && (e.target.id === 'btnConfirmResetInstancePath' || e.target.closest('#btnConfirmResetInstancePath'))) {
+                const resetModal = document.getElementById('instanceResetModal');
+                if (resetModal) resetModal.style.display = 'none';
+                await this.resetInstancePath();
+            }
+        });
+
+        document.addEventListener('click', async (e) => {
+            if (e.target && (e.target.id === 'btnCancelMoveInstance' || e.target.closest('#btnCancelMoveInstance'))) {
+                const moveModal = document.getElementById('instanceMoveModal');
+                if (moveModal) moveModal.style.display = 'none';
+                this.pendingPathChange = null;
+            } else if (e.target && (e.target.id === 'btnSkipMoveInstance' || e.target.closest('#btnSkipMoveInstance'))) {
+                const moveModal = document.getElementById('instanceMoveModal');
+                if (moveModal) moveModal.style.display = 'none';
+                if (this.pendingPathChange) {
+                    await this.applyNewInstancePath(this.pendingPathChange.newRawPath);
+                    this.pendingPathChange = null;
+                }
+            } else if (e.target && (e.target.id === 'btnConfirmMoveInstance' || e.target.closest('#btnConfirmMoveInstance'))) {
+                if (this.pendingPathChange) {
+                    await this.executeMoveInstances(this.pendingPathChange);
+                    this.pendingPathChange = null;
+                }
+            }
+        });
+    }
+
+    promptMoveInstances(count, formattedSize, newPath) {
+        const modal = document.getElementById('instanceMoveModal');
+        const desc = document.getElementById('moveModalDesc');
+        const anim = document.getElementById('moveStatusAnim');
+        const actions = document.getElementById('moveModalActions');
+
+        if (desc) {
+            desc.innerHTML = `Se encontraron <b>${count}</b> instancia(s) instalada(s) (~${formattedSize}).<br><br>¿Deseas mover los archivos a la nueva ubicación?<br><span style="color:#818cf8; font-family: monospace; font-size: 0.8rem; word-break: break-all;">${newPath}</span>`;
+        }
+        if (anim) anim.style.display = 'none';
+        if (actions) actions.style.display = 'flex';
+        if (modal) modal.style.display = 'flex';
+    }
+
+    async executeMoveInstances(changeInfo) {
+        const modal = document.getElementById('instanceMoveModal');
+        const anim = document.getElementById('moveStatusAnim');
+        const statusText = document.getElementById('moveStatusText');
+        const actions = document.getElementById('moveModalActions');
+
+        if (anim) anim.style.display = 'flex';
+        if (actions) actions.style.display = 'none';
+        if (statusText) statusText.textContent = 'Transfiriendo archivos de instancias a la nueva ubicación...';
+
+        try {
+            await new Promise(r => setTimeout(r, 400));
+            await this.transferDirectoryFiles(changeInfo.oldInstancesDir, changeInfo.newInstancesDir, (name) => {
+                if (statusText) statusText.textContent = `Transfiriendo "${name}"...`;
+            });
+
+            await this.applyNewInstancePath(changeInfo.newRawPath, false);
+
+            if (modal) modal.style.display = 'none';
+
+            let pSuccess = new popup();
+            pSuccess.openPopup({
+                title: 'Instancias Transferidas',
+                content: `La ruta fue actualizada y tus instancias se transfirieron correctamente a:<br><br><span style="color:#34d399; font-family: monospace; font-size: 0.82rem; word-break: break-all;">${changeInfo.newInstancesDir}</span>`,
+                color: '#34d399',
+                options: true
+            });
+        } catch (err) {
+            console.error('Error al transferir instancias:', err);
+            if (modal) modal.style.display = 'none';
+            let pErr = new popup();
+            pErr.openPopup({
+                title: 'Aviso de Transferencia',
+                content: `No se pudieron mover algunos archivos (pueden estar en uso por Minecraft): ${err.message || err}. Se actualizó la ruta.`,
+                color: '#ef4444',
+                options: true
+            });
+            await this.applyNewInstancePath(changeInfo.newRawPath, false);
+        }
+    }
+
+    async transferDirectoryFiles(srcDir, dstDir, onProgress) {
+        if (!fs.existsSync(srcDir)) return;
+        if (!fs.existsSync(dstDir)) {
+            fs.mkdirSync(dstDir, { recursive: true });
+        }
+
+        const entries = fs.readdirSync(srcDir, { withFileTypes: true });
+        for (const entry of entries) {
+            if (!entry.isDirectory()) continue;
+            const srcItem = path.join(srcDir, entry.name);
+            const dstItem = path.join(dstDir, entry.name);
+
+            if (onProgress) onProgress(entry.name);
+
+            try {
+                fs.renameSync(srcItem, dstItem);
+            } catch (err) {
+                if (err.code === 'EXDEV' || err) {
+                    fs.cpSync(srcItem, dstItem, { recursive: true, force: true });
+                    try {
+                        fs.rmSync(srcItem, { recursive: true, force: true });
+                    } catch (_) {}
+                }
+            }
+        }
+    }
+
+    async applyNewInstancePath(newPath, showPopup = true) {
+        let configClient = await this.db.readData('configClient');
+        configClient.game_config = configClient.game_config || {};
+        configClient.game_config.instances_path = newPath;
+        await this.db.updateData('configClient', configClient);
+
+        await this.updateInstancePathDisplay();
+        await this.loadInstancesClientList();
+
+        if (showPopup) {
+            let p = new popup();
+            p.openPopup({
+                title: 'Ruta Actualizada',
+                content: `La ruta de instalación de instancias ahora es:<br><br><span style="color:#34d399; font-family: monospace; font-size: 0.82rem; word-break: break-all;">${newPath}</span>`,
+                color: '#34d399',
+                options: true
+            });
+        }
+    }
+
+    async resetInstancePath() {
+        let configClient = await this.db.readData('configClient');
+        if (configClient?.game_config) {
+            configClient.game_config.instances_path = null;
+        }
+        configClient.instances_path = null;
+        await this.db.updateData('configClient', configClient);
+
+        await this.updateInstancePathDisplay();
+        await this.loadInstancesClientList();
+
+        let p = new popup();
+        p.openPopup({
+            title: 'Ruta Restablecida',
+            content: 'Se ha restablecido la ruta de instancias a la ubicación predeterminada.',
+            color: '#34d399',
+            options: true
+        });
+    }
+
     async instancesManagement() {
         const refreshBtn = document.getElementById('btn-refresh-instances');
         if (refreshBtn) {
@@ -354,10 +613,18 @@ class Settings {
             });
         }
 
-        // Delegación de eventos para la lista de instancias
         const listContainer = document.getElementById('instances-client-list');
         if (listContainer) {
             listContainer.addEventListener('click', (e) => {
+                let openBtn = e.target.closest('.btn-open-instance-folder');
+                if (openBtn) {
+                    let folderPath = openBtn.getAttribute('data-path');
+                    if (folderPath) {
+                        ipcRenderer.invoke('open-directory', folderPath);
+                    }
+                    return;
+                }
+
                 let deleteBtn = e.target.closest('.btn-delete-instance-trash');
                 if (deleteBtn) {
                     let isInstalled = deleteBtn.getAttribute('data-installed') === 'true';
@@ -370,7 +637,6 @@ class Settings {
             });
         }
 
-        // Delegación de eventos para los botones del modal de eliminación
         document.addEventListener('click', (e) => {
             if (e.target && (e.target.id === 'btnCancelDeleteInstance' || e.target.closest('#btnCancelDeleteInstance'))) {
                 const modal = document.getElementById('instanceDeleteModal');
@@ -387,10 +653,8 @@ class Settings {
     }
 
     async getLocalInstancePath(instanceName) {
-        let appDataPath = await appdata();
-        let dataDir = this.config?.dataDirectory || pkg?.dataDirectory || 'mdklauncher/launcher/data';
-        let folderName = process.platform === 'darwin' ? dataDir : `.${dataDir}`;
-        return path.join(appDataPath, folderName, 'instances', instanceName);
+        const paths = await getGamePaths(this.config);
+        return paths.getInstancePath(instanceName);
     }
 
     calculateFolderSize(dirPath) {
@@ -428,10 +692,8 @@ class Settings {
 
         listContainer.innerHTML = '<div style="text-align:center; padding: 2rem; color: #a1a1aa;">Cargando lista de instancias...</div>';
 
-        let appDataPath = await appdata();
-        let dataDir = this.config?.dataDirectory || pkg?.dataDirectory || 'mdklauncher/launcher/data';
-        let folderName = process.platform === 'darwin' ? dataDir : `.${dataDir}`;
-        let instancesRoot = path.join(appDataPath, folderName, 'instances');
+        const paths = await getGamePaths(this.config);
+        let instancesRoot = paths.instancesDir;
 
         // 1. Obtener carpetas locales reales en el disco
         let localFolders = [];
@@ -463,11 +725,9 @@ class Settings {
         for (let sInst of serverInstances) {
             if (!sInst) continue;
 
-            // Verificar si tiene whitelist activa y si el usuario está agregado
             if (sInst.whitelistActive) {
                 let isAllowed = sInst.whitelist && sInst.whitelist.some(w => w.toLowerCase() === auth?.name?.toLowerCase());
                 if (!isAllowed) {
-                    // Si el usuario no está en la lista de la instancia, NO aparece
                     continue;
                 }
             }
@@ -493,7 +753,6 @@ class Settings {
         for (let folder of localFolders) {
             if (!processedNames.has(folder.toLowerCase())) {
                 let serverMatch = serverInstances.find(s => s.name.toLowerCase() === folder.toLowerCase());
-                // Si es una instancia de servidor donde el usuario no tiene acceso, no mostrarla si no está instalada
                 if (serverMatch && serverMatch.whitelistActive) {
                     let isAllowed = serverMatch.whitelist && serverMatch.whitelist.some(w => w.toLowerCase() === auth?.name?.toLowerCase());
                     if (!isAllowed) continue;
@@ -551,9 +810,20 @@ class Settings {
                             ${!inst.isServer ? `<span class="instance-client-badge" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3);">⚠️ Evento / Antigua</span>` : ''}
                         </div>
                         <span class="instance-client-subtext">Minecraft ${inst.version} · Loader: ${inst.loader.toUpperCase()}</span>
+                        ${inst.isInstalled ? `<span class="instance-client-path-hint" title="${inst.path}">📁 ${inst.path}</span>` : ''}
                     </div>
                 </div>
                 <div class="instance-client-actions">
+                    ${inst.isInstalled ? `
+                        <button class="btn-open-instance-folder" 
+                            title="Abrir carpeta de ${inst.name} en el explorador de archivos" 
+                            data-path="${inst.path}">
+                            <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"></path>
+                            </svg>
+                            Abrir Carpeta
+                        </button>
+                    ` : ''}
                     <button class="btn-delete-instance-trash ${inst.isInstalled ? '' : 'disabled'}" 
                         title="${inst.isInstalled ? 'Eliminar archivos de la instancia de tu PC' : 'Esta instancia aún no está descargada'}" 
                         data-instance="${inst.name}" 

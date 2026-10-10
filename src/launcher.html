@@ -194,6 +194,52 @@
             </div>
         </div>
 
+        <!-- Modal de confirmación para mover instancias al cambiar de ruta -->
+        <div class="instance-delete-modal-overlay" id="instanceMoveModal" style="display: none;">
+            <div class="instance-delete-modal-box">
+                <div class="instance-delete-modal-icon" style="background: rgba(99, 102, 241, 0.15); border-color: rgba(99, 102, 241, 0.3);">
+                    <svg width="34" height="34" fill="none" viewBox="0 0 24 24" stroke="#818cf8">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                    </svg>
+                </div>
+                <h3 id="moveModalTitle">¿Mover instancias existentes?</h3>
+                <p id="moveModalDesc">Se encontraron instancias instaladas en la ubicación anterior. ¿Deseas transferir los archivos a la nueva ruta seleccionada?</p>
+                
+                <div class="instance-delete-status-anim" id="moveStatusAnim" style="display: none;">
+                    <div class="delete-spinner" style="border-top-color: #818cf8;"></div>
+                    <span id="moveStatusText">Transfiriendo archivos de instancias...</span>
+                </div>
+
+                <div class="instance-delete-modal-actions" id="moveModalActions">
+                    <button class="btn-cancel-delete" id="btnCancelMoveInstance">Cancelar</button>
+                    <button class="btn-cancel-delete" id="btnSkipMoveInstance" style="background: rgba(255, 255, 255, 0.04); border-color: rgba(255,255,255,0.08);">Solo Cambiar Ruta</button>
+                    <button class="btn-confirm-delete" id="btnConfirmMoveInstance" style="background: var(--element-color); border-color: var(--element-color); box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);">
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Mover Archivos
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal de confirmación para restablecer ruta de instancias -->
+        <div class="instance-delete-modal-overlay" id="instanceResetModal" style="display: none;">
+            <div class="instance-delete-modal-box">
+                <div class="instance-delete-modal-icon" style="background: rgba(245, 158, 11, 0.15); border-color: rgba(245, 158, 11, 0.3);">
+                    <svg width="34" height="34" fill="none" viewBox="0 0 24 24" stroke="#fbbf24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                </div>
+                <h3>¿Restablecer ruta predeterminada?</h3>
+                <p>Las instancias volverán a buscarse y guardarse en la carpeta por defecto de datos de la aplicación.</p>
+                <div class="instance-delete-modal-actions">
+                    <button class="btn-cancel-delete" id="btnCancelResetInstancePath">Cancelar</button>
+                    <button class="btn-confirm-delete" id="btnConfirmResetInstancePath" style="background: #f59e0b; border-color: #f59e0b;">Restablecer</button>
+                </div>
+            </div>
+        </div>
+
         <div class="panels"></div>
         <script src="assets/js/launcher.js" type="module"></script>
     </body>

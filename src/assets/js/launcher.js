@@ -229,7 +229,8 @@ class Launcher {
                     screen_size: {
                         width: 854,
                         height: 480
-                    }
+                    },
+                    instances_path: null
                 },
                 launcher_config: {
                     download_multi: 10,

@@ -6,6 +6,7 @@
 const { ipcRenderer } = require('electron')
 const { Status } = require('minecraft-java-core')
 const fs = require('fs');
+const path = require('path');
 let pkg;
 try {
     pkg = require('../../../package.json');
@@ -282,6 +283,45 @@ async function setStatus(opt, instanceName) {
 }
 
 
+async function getGamePaths(customConfig) {
+    let db = new database();
+    let configClient = await db.readData('configClient');
+    let customPath = configClient?.game_config?.instances_path || configClient?.instances_path || null;
+
+    let appDataPath = await appdata();
+    let dataDir = customConfig?.dataDirectory || pkg?.dataDirectory || 'mdklauncher/launcher/data';
+    let folderName = process.platform === 'darwin' ? dataDir : `.${dataDir}`;
+    let defaultRootDir = path.join(appDataPath, folderName);
+    let defaultInstancesDir = path.join(defaultRootDir, 'instances');
+
+    let isCustom = false;
+    let rootDir = defaultRootDir;
+    let instancesDir = defaultInstancesDir;
+
+    if (customPath && typeof customPath === 'string' && customPath.trim() !== '') {
+        isCustom = true;
+        let cleanPath = customPath.trim();
+        if (path.basename(cleanPath).toLowerCase() === 'instances') {
+            instancesDir = cleanPath;
+            rootDir = path.dirname(cleanPath);
+        } else {
+            rootDir = cleanPath;
+            instancesDir = path.join(cleanPath, 'instances');
+        }
+    }
+
+    return {
+        isCustom,
+        customPath: isCustom ? customPath.trim() : null,
+        rootDir: rootDir.replace(/\\/g, '/'),
+        instancesDir: instancesDir.replace(/\\/g, '/'),
+        defaultRootDir: defaultRootDir.replace(/\\/g, '/'),
+        defaultInstancesDir: defaultInstancesDir.replace(/\\/g, '/'),
+        getInstancePath: (instanceName) => path.join(instancesDir, instanceName).replace(/\\/g, '/')
+    };
+}
+
+
 export {
     appdata as appdata,
     changePanel as changePanel,
@@ -296,5 +336,6 @@ export {
     accountSelect as accountSelect,
     slider as Slider,
     pkg as pkg,
-    setStatus as setStatus
+    setStatus as setStatus,
+    getGamePaths as getGamePaths
 }

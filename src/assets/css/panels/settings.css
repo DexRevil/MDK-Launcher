@@ -759,3 +759,148 @@
     transform: translateY(-1px);
     box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
 }
+
+/* ==========================================================================
+   INSTANCE PATH SETTINGS
+   ========================================================================== */
+.instance-path-badge {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 4px;
+}
+
+.instance-path-badge.badge-default {
+    background: rgba(99, 102, 241, 0.15);
+    color: #818cf8;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.instance-path-badge.badge-custom {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.instance-path-control-box {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.instance-path-input-wrapper {
+    width: 100%;
+    position: relative;
+}
+
+.instance-path-display-input {
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, 0.28);
+    border: 1px solid var(--glass-border);
+    color: #e2e8f0;
+    font-size: 0.88rem;
+    font-family: monospace;
+    padding: 10px 14px;
+    border-radius: 10px;
+    outline: none;
+    cursor: default;
+    user-select: all;
+    transition: var(--transition);
+}
+
+.instance-path-display-input:focus {
+    border-color: var(--element-color);
+}
+
+.instance-path-btn-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.instance-path-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 16px;
+    border-radius: 10px;
+    font-size: 0.84rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    user-select: none;
+    border: 1px solid transparent;
+}
+
+.btn-change-path {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: rgba(99, 102, 241, 0.4);
+    color: #fff;
+}
+.btn-change-path:hover {
+    background: rgba(99, 102, 241, 0.35);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+}
+
+.btn-open-path {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: var(--glass-border);
+    color: var(--color);
+}
+.btn-open-path:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--element-color);
+    transform: translateY(-1px);
+}
+
+.btn-reset-path {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: var(--text-muted);
+}
+.btn-reset-path:hover {
+    background: rgba(245, 158, 11, 0.15);
+    border-color: rgba(245, 158, 11, 0.3);
+    color: #fbbf24;
+    transform: translateY(-1px);
+}
+
+.btn-open-instance-folder {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--glass-border);
+    padding: 8px 14px;
+    border-radius: 9px;
+    color: var(--color);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+.btn-open-instance-folder:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: var(--element-color);
+    transform: scale(1.02);
+}
+
+.instance-client-path-hint {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    font-family: monospace;
+    max-width: 380px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    margin-top: 2px;
+}

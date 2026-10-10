@@ -5,7 +5,7 @@
 // Cargar resolver Multi-DNS y DoH autónomo para Node.js
 require('./assets/js/utils/dnsResolver.js');
 
-const { app, ipcMain, nativeTheme } = require('electron');
+const { app, ipcMain, nativeTheme, dialog, shell } = require('electron');
 const { Microsoft } = require('minecraft-java-core');
 const { autoUpdater } = require('electron-updater')
 
@@ -61,6 +61,38 @@ ipcMain.on('update-window-progress-load', () => UpdateWindow.getWindow().setProg
 
 ipcMain.handle('path-user-data', () => app.getPath('userData'))
 ipcMain.handle('appData', e => app.getPath('appData'))
+
+ipcMain.handle('select-directory', async (event, defaultPath) => {
+    try {
+        const win = MainWindow.getWindow();
+        const result = await dialog.showOpenDialog(win, {
+            title: 'Seleccionar carpeta de instalación de instancias',
+            defaultPath: defaultPath || app.getPath('appData'),
+            properties: ['openDirectory', 'createDirectory']
+        });
+        if (result.canceled || !result.filePaths || result.filePaths.length === 0) {
+            return null;
+        }
+        return result.filePaths[0];
+    } catch (err) {
+        console.error('[Dialog] Error al seleccionar directorio:', err);
+        return null;
+    }
+});
+
+ipcMain.handle('open-directory', async (event, targetPath) => {
+    try {
+        if (!targetPath) return false;
+        if (!fs.existsSync(targetPath)) {
+            fs.mkdirSync(targetPath, { recursive: true });
+        }
+        await shell.openPath(targetPath);
+        return true;
+    } catch (err) {
+        console.error('[Shell] Error al abrir directorio:', err);
+        return false;
+    }
+});
 
 ipcMain.on('main-window-maximize', () => {
     if (MainWindow.getWindow().isMaximized()) {

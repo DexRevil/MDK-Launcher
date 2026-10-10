@@ -30,10 +30,43 @@
     </div>
 
     <div id="instances-tab" class="container-settings content-scroll">
-        <div class="titre-tab">Gestión de Instancias Instaladas</div>
+        <div class="titre-tab">Ruta de Instalación de Instancias</div>
         <div class="settings-elements-box">
             <div class="setting-text">
-                Administra los archivos descargados de cada instancia en tu computadora. Puedes verificar qué instancias tienes instaladas y eliminar sus carpetas locales con el botón de papelera para liberar espacio o reiniciar la instalación.<br><br>
+                Selecciona la carpeta donde se descargarán e instalarán tus instancias del juego. Por defecto se guardan en la carpeta de datos de la aplicación. Puedes cambiar la ruta a otro disco o partición para liberar espacio.<br><br>
+                <span id="instance-path-status-badge" class="instance-path-badge badge-default">📂 Ruta Predeterminada</span>
+            </div>
+            <div class="instance-path-control-box">
+                <div class="instance-path-input-wrapper">
+                    <input type="text" id="instance-path-display" class="instance-path-display-input" readonly spellcheck="false" placeholder="Cargando ruta de instancias...">
+                </div>
+                <div class="instance-path-btn-group">
+                    <button class="instance-path-btn btn-change-path" id="btn-change-instance-path" title="Seleccionar una nueva carpeta para las instancias">
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path>
+                        </svg>
+                        Cambiar Ruta
+                    </button>
+                    <button class="instance-path-btn btn-open-path" id="btn-open-instance-path" title="Abrir carpeta de instancias en el explorador de archivos">
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                        </svg>
+                        Abrir Carpeta
+                    </button>
+                    <button class="instance-path-btn btn-reset-path" id="btn-reset-instance-path" title="Restablecer a la ruta por defecto">
+                        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        Restablecer
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="titre-tab" style="margin-top: 2rem;">Gestión de Instancias Instaladas</div>
+        <div class="settings-elements-box">
+            <div class="setting-text">
+                Administra los archivos descargados de cada instancia en tu computadora. Puedes verificar qué instancias tienes instaladas, abrir su carpeta individual o eliminar sus archivos locales con el botón de papelera para liberar espacio o reiniciar la instalación.<br><br>
                 <span style="color: #fbbf24; font-size: 0.85rem;">💡 <b>Nota:</b> Solo se eliminan los archivos locales en tu PC. No afecta tu cuenta ni la configuración en el servidor.</span>
             </div>
         </div>

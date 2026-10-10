@@ -1,7 +1,7 @@
 /**
  * @author ElFo2Ks
  */
-import { config, database, logger, changePanel, appdata, setStatus, pkg, popup, setInstanceBackground } from '../utils.js'
+import { config, database, logger, changePanel, appdata, setStatus, pkg, popup, setInstanceBackground, getGamePaths } from '../utils.js'
 
 const { Launch } = require('minecraft-java-core')
 const { shell, ipcRenderer } = require('electron')
@@ -53,6 +53,13 @@ const applyMjcHashPatch = () => {
                 const chosenVariant = activeDualStackVariant || 'ipv4';
                 const rejectedVariant = chosenVariant === 'ipv6' ? 'ipv4' : 'ipv6';
 
+                // Registrar archivos FancyMenu que cuentan con variantes en este bundle
+                const variantBaseNames = new Set();
+                for (const item of bundle) {
+                    const vm = (item.path || '').replace(/\\/g, '/').match(/(?:^|\/)config\/fancymenu\/customization\/(.+?)\.(?:ipv6|ipv4)\.txt$/i);
+                    if (vm) variantBaseNames.add(vm[1].toLowerCase());
+                }
+
                 for (const file of bundle) {
                     if (!file.path) continue;
                     if (file.url && typeof file.url === 'string') {
@@ -82,6 +89,12 @@ const applyMjcHashPatch = () => {
                         // Redirigir la ruta relativa para que se descargue directamente como el archivo base (ej: bingo_menu.txt)
                         file.path = file.path.replace(/\.(ipv6|ipv4)\.txt$/i, '.txt');
                         console.log(`[DualStack] 📥 Descarga dirigida FancyMenu: [${baseNameOnly}.${fileVariant}.txt] -> [${baseFileName}]`);
+                    } else if (!fmVariantMatch && chosenVariant !== 'external') {
+                        // 3. Si es el archivo base y existen variantes para él en el bundle, ignorarlo para no sobreescribir la variante
+                        const baseMatch = normRelForMatch.match(/(?:^|\/)config\/fancymenu\/customization\/(.+?)\.txt$/i);
+                        if (baseMatch && variantBaseNames.has(baseMatch[1].toLowerCase())) {
+                            continue;
+                        }
                     }
 
                     file.path = path.resolve(this.options.path, file.path).replace(/\\/g, '/');
@@ -456,6 +469,13 @@ class Home {
         this.isGameRunning = false;
         this.setSidebarActionsBlocked(false);
         await this.updatePlayButtonState(null);
+
+        document.addEventListener('panelChanged', async (e) => {
+            if (e.detail === 'home' && !this.isGameRunning) {
+                await this.updateInstancesData();
+                await this.updatePlayButtonState();
+            }
+        });
 
         // 🔁 Actualización automática cada 30s
         setInterval(() => {
@@ -939,10 +959,8 @@ class Home {
     async isInstanceInstalled(instanceName) {
         try {
             if (!instanceName) return false;
-            let appDataPath = await appdata();
-            let dataDir = this.config.dataDirectory || 'mdklauncher/launcher/data';
-            let folderName = process.platform === 'darwin' ? dataDir : `.${dataDir}`;
-            let localInstancePath = path.join(appDataPath, folderName, 'instances', instanceName);
+            const paths = await getGamePaths(this.config);
+            let localInstancePath = paths.getInstancePath(instanceName);
 
             if (!fs.existsSync(localInstancePath)) return false;
 
@@ -1084,10 +1102,8 @@ class Home {
         infoStarting.innerHTML = `Sincronizando archivos con el servidor...`
         ipcRenderer.send('main-window-progress-load')
 
-        let appDataPath = await appdata();
-        let dataDir = this.config.dataDirectory || 'mdklauncher/launcher/data';
-        let folderName = process.platform === 'darwin' ? dataDir : `.${dataDir}`;
-        let localInstancePath = path.join(appDataPath, folderName, 'instances', options.name);
+        const paths = await getGamePaths(this.config);
+        let localInstancePath = paths.getInstancePath(options.name);
 
         let launchUrl = options.url;
         if (typeof launchUrl === 'string') {
@@ -1111,7 +1127,7 @@ class Home {
             url: launchUrl,
             authenticator: authenticator,
             timeout: 300000,
-            path: `${appDataPath}/${process.platform == 'darwin' ? dataDir : `.${dataDir}`}`,
+            path: paths.rootDir,
             instance: options.name,
             version: options.loadder.minecraft_version,
             detached: configClient.launcher_config.closeLauncher == "close-all" ? false : true,
