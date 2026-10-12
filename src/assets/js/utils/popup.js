@@ -22,14 +22,22 @@ export default class popup {
         this.popupContent.style.color = info.color ? info.color : '#e21212';
         this.popupContent.innerHTML = info.content;
 
-        if (info.options) this.popupOptions.style.display = 'flex';
-
-        if (this.popupOptions.style.display !== 'none') {
-            this.popupButton.addEventListener('click', () => {
-                if (info.exit) return ipcRenderer.send('main-window-close');
-                this.closePopup();
-            })
+        if (info.options) {
+            this.popupOptions.style.display = 'flex';
+        } else {
+            this.popupOptions.style.display = 'none';
         }
+
+        this.popupButton.onclick = () => {
+            if (info.exit) return ipcRenderer.send('main-window-close');
+            this.closePopup();
+        };
+
+        this.popup.onclick = (e) => {
+            if (e.target === this.popup && this.popupOptions.style.display !== 'none') {
+                this.closePopup();
+            }
+        };
     }
 
     closePopup() {

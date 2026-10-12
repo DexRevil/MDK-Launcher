@@ -956,14 +956,16 @@ class Settings {
                 popupRepair.openPopup({
                     title: '✅ Conexión y DNS Reparados',
                     content: `¡Caché de red limpiada exitosamente!<br><br>Se eliminaron bloqueos temporales de DNS de Windows y se activó la resolución optimizada con Cloudflare y Google (DoH) para tus servidores.`,
-                    color: '#10b981'
+                    color: '#10b981',
+                    options: true
                 });
             } catch (err) {
                 console.error('[NetworkRepair] Error en reparación de red:', err);
                 popupRepair.openPopup({
                     title: 'Diagnóstico de Red',
                     content: `La caché de red fue limpiada. Puedes reiniciar el launcher y probar entrar de nuevo.`,
-                    color: 'var(--color)'
+                    color: 'var(--color)',
+                    options: true
                 });
             }
         });
