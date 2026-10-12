@@ -7,6 +7,9 @@
 const dns = require('dns');
 const https = require('https');
 const http = require('http');
+const net = require('net');
+const fs = require('fs');
+const { exec } = require('child_process');
 
 // 1. Configuración de servidores DNS públicos redundantes (Cloudflare, Google, Quad9)
 const DNS_SERVERS = [
@@ -134,6 +137,190 @@ async function resolveDomain(hostname) {
 }
 
 /**
+ * Consulta DoH cifrada para registros SRV de Minecraft
+ */
+async function queryDoH_SRV(hostname) {
+    const endpoints = [
+        `https://1.1.1.1/dns-query?name=${encodeURIComponent('_minecraft._tcp.' + hostname)}&type=SRV`,
+        `https://dns.google/resolve?name=${encodeURIComponent('_minecraft._tcp.' + hostname)}&type=SRV`
+    ];
+    for (const url of endpoints) {
+        try {
+            const res = await new Promise((resolve, reject) => {
+                const req = https.get(url, { headers: { 'Accept': 'application/dns-json' }, timeout: 2500 }, (r) => {
+                    let d = '';
+                    r.on('data', c => d += c);
+                    r.on('end', () => resolve(d));
+                });
+                req.on('error', reject);
+                req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+            });
+            const json = JSON.parse(res);
+            if (json && Array.isArray(json.Answer)) {
+                for (const ans of json.Answer) {
+                    if (ans.type === 33 && ans.data) {
+                        const parts = ans.data.trim().split(/\s+/);
+                        if (parts.length >= 4) {
+                            return { port: parseInt(parts[2], 10), name: parts[3].replace(/\.$/, '') };
+                        }
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+    return null;
+}
+
+/**
+ * Resuelve registros SRV de Minecraft (_minecraft._tcp.<domain>)
+ * Devuelve { port, name } o null.
+ */
+async function resolveSrvRecord(hostname) {
+    if (!hostname || net.isIP(hostname)) return null;
+
+    // 1. Intento por DNS UDP directo
+    try {
+        const records = await new Promise((resolve, reject) => {
+            dns.resolveSrv(`_minecraft._tcp.${hostname}`, (err, res) => {
+                if (!err && res && res.length > 0) return resolve(res);
+                reject(err || new Error('No SRV'));
+            });
+        });
+        if (records && records[0] && records[0].port) {
+            return {
+                port: Number(records[0].port),
+                name: (records[0].name || '').replace(/\.$/, '')
+            };
+        }
+    } catch (_) {}
+
+    // 2. Fallback a DoH
+    try {
+        const doh = await queryDoH_SRV(hostname);
+        if (doh) return doh;
+    } catch (_) {}
+
+    return null;
+}
+
+/**
+ * Resuelve cualquier host (Playit, túnel o servidor externo) a su IP numérica final y puerto.
+ * - Detecta si viene puerto explícito (ej: host:13602 o [ipv6]:13602)
+ * - Si no tiene puerto, consulta registros SRV de Minecraft
+ * - Traduce el dominio a su IP numérica directa usando Cloudflare / Google (DoH + Anycast)
+ * Devuelve: { ip, port, target, isNumeric, originalHost }
+ */
+async function resolveHostAndPort(rawHost, defaultPort = 25565) {
+    if (!rawHost) return { ip: '', port: defaultPort, target: '', isNumeric: false };
+    let hostname = String(rawHost).trim();
+    let port = Number(defaultPort) || 25565;
+    let hadPortInHost = false;
+
+    // Separar host y puerto si vienen juntos
+    if (hostname.includes(':') && !hostname.endsWith(']')) {
+        const lastColon = hostname.lastIndexOf(':');
+        const candidatePort = Number(hostname.substring(lastColon + 1));
+        if (!isNaN(candidatePort) && candidatePort > 0) {
+            port = candidatePort;
+            hostname = hostname.substring(0, lastColon).replace(/^\[|\]$/g, '').trim();
+            hadPortInHost = true;
+        }
+    }
+
+    // Si ya es una IP numérica (IPv4 o IPv6), retornar directo sin demoras
+    const ipFamily = net.isIP(hostname);
+    if (ipFamily) {
+        const target = ipFamily === 6 ? `[${hostname}]:${port}` : `${hostname}:${port}`;
+        return { ip: hostname, port: port, target: target, isNumeric: true, family: ipFamily };
+    }
+
+    // Si no traía puerto explícito o tenía el default, verificar si tiene SRV
+    let targetHost = hostname;
+    if (!hadPortInHost || port === 25565) {
+        try {
+            const srv = await resolveSrvRecord(hostname);
+            if (srv && srv.port && srv.name) {
+                port = srv.port;
+                targetHost = srv.name;
+            }
+        } catch (_) {}
+    }
+
+    // Resolver targetHost a IP numérica usando la estrategia multi-DNS
+    let resolvedIp = targetHost;
+    try {
+        const records = await resolveDomain(targetHost);
+        if (records && records.length > 0) {
+            // Priorizar IPv4 para túneles Playit y servidores generales
+            const v4 = records.find(r => r.family === 4);
+            resolvedIp = v4 ? v4.address : records[0].address;
+        }
+    } catch (_) {}
+
+    const isNum = Boolean(net.isIP(resolvedIp));
+    const target = isNum && net.isIP(resolvedIp) === 6 ? `[${resolvedIp}]:${port}` : `${resolvedIp}:${port}`;
+
+    return {
+        ip: resolvedIp,
+        port: port,
+        target: target,
+        isNumeric: isNum,
+        originalHost: hostname
+    };
+}
+
+/**
+ * Limpia la caché DNS de Windows y del proceso Node.js en segundo plano (sin abrir consolas).
+ */
+function flushSystemDnsCache() {
+    return new Promise((resolve) => {
+        dnsCache.clear();
+        if (process.platform === 'win32') {
+            exec('ipconfig /flushdns', { windowsHide: true }, (err) => {
+                if (!err) {
+                    console.log('[DNS-Resolver] 🧹 Caché DNS de Windows limpiada con éxito.');
+                }
+                resolve(!err);
+            });
+        } else {
+            resolve(true);
+        }
+    });
+}
+
+/**
+ * Agrega permisos automáticos en el Firewall de Windows para el ejecutable de Java.
+ */
+function repairWindowsFirewallForJava(javaExePath) {
+    return new Promise((resolve) => {
+        if (process.platform !== 'win32' || !javaExePath) {
+            return resolve(false);
+        }
+        try {
+            if (!fs.existsSync(javaExePath)) {
+                return resolve(false);
+            }
+        } catch (_) {
+            return resolve(false);
+        }
+
+        const ruleNameOut = 'MDK-Launcher Java Runtime Out';
+        const ruleNameIn = 'MDK-Launcher Java Runtime In';
+        const cmdOut = `netsh advfirewall firewall add rule name="${ruleNameOut}" dir=out action=allow program="${javaExePath}" enable=yes`;
+        const cmdIn = `netsh advfirewall firewall add rule name="${ruleNameIn}" dir=in action=allow program="${javaExePath}" enable=yes`;
+
+        exec(`${cmdOut} & ${cmdIn}`, { windowsHide: true }, (err) => {
+            if (!err) {
+                console.log('[Firewall] ✅ Reglas de Firewall de Windows aplicadas para Java:', javaExePath);
+                resolve(true);
+            } else {
+                resolve(false);
+            }
+        });
+    });
+}
+
+/**
  * Función customLookup para inyectar en http/https agents y node-fetch
  */
 function customLookup(hostname, options, callback) {
@@ -209,6 +396,11 @@ const resolverModule = {
     customLookup,
     resolveDomain,
     queryDoH,
+    queryDoH_SRV,
+    resolveSrvRecord,
+    resolveHostAndPort,
+    flushSystemDnsCache,
+    repairWindowsFirewallForJava,
     customHttpsAgent,
     customHttpAgent
 };

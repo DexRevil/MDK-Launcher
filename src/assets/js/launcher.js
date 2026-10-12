@@ -126,6 +126,12 @@ class Launcher {
 
         netBtn.addEventListener('click', () => {
             if (netBtn.classList.contains('checking')) return;
+            try {
+                let dnsResolver = require('./utils/dnsResolver.js');
+                if (dnsResolver && typeof dnsResolver.flushSystemDnsCache === 'function') {
+                    dnsResolver.flushSystemDnsCache().catch(() => {});
+                }
+            } catch (_) {}
             this.runNetworkCheck();
         });
 

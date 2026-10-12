@@ -26,6 +26,12 @@ const computeFileHash = (filePath, algorithm = 'sha256') => {
 };
 
 let activeDualStackVariant = 'ipv4';
+let dnsResolver = null;
+try {
+    dnsResolver = require('../utils/dnsResolver.js');
+} catch (_) {
+    dnsResolver = (typeof global !== 'undefined') ? (global.dnsResolver || global.__MDK_DNS_RESOLVER__) : null;
+}
 
 // Monkey-patch a minecraft-java-core para soportar verificación nativa de hashes SHA-256 (64 hex)
 // y enrutamiento directo de variantes FancyMenu (descarga solo la variante que corresponde al cliente)
@@ -376,16 +382,43 @@ const restoreOriginalNetworkFiles = (instancePath) => {
 };
 
 /**
- * Aplica el enrutamiento Dual Stack completo (IPv6 directa o IPv4 Playit.gg de respaldo).
+ * Aplica el enrutamiento Dual Stack completo (IPv6 directa o IPv4 Playit.gg de respaldo)
+ * y protección de resolución DNS autónoma (Cloudflare DoH / Google) contra "Anfitrión desconocido".
  * @param {string} instancePath 
  * @param {object} networkConfig 
  * @param {string} instanceName 
+ * @param {object} instanceStatus 
  */
-const applyDualStackRouting = async (instancePath, networkConfig, instanceName) => {
+const applyDualStackRouting = async (instancePath, networkConfig, instanceName, instanceStatus = null) => {
+    // 1. Limpiar caché DNS del sistema en segundo plano de manera silenciosa
+    if (dnsResolver && typeof dnsResolver.flushSystemDnsCache === 'function') {
+        dnsResolver.flushSystemDnsCache().catch(() => {});
+    }
+
     if (!networkConfig || networkConfig.mode !== 'internal') {
-        console.log(`[DualStack] Instancia "${instanceName}" en modo Externo/Remoto. Restaurando archivos originales si aplica.`);
-        restoreOriginalNetworkFiles(instancePath);
+        console.log(`[DualStack] Instancia "${instanceName}" en modo Externo/Remoto.`);
         activeDualStackVariant = 'external';
+
+        // Para servidores externos: optimizar el host a IP numérica para proteger al cliente contra "Anfitrión desconocido"
+        let extHost = (instanceStatus && instanceStatus.ip) || (networkConfig && networkConfig.ipv4_host) || '';
+        let extPort = (instanceStatus && instanceStatus.port) || (networkConfig && networkConfig.ipv4_port) || 25565;
+
+        if (extHost && extHost !== '127.0.0.1' && extHost !== 'localhost') {
+            try {
+                if (dnsResolver && typeof dnsResolver.resolveHostAndPort === 'function') {
+                    const resolvedExt = await dnsResolver.resolveHostAndPort(extHost, extPort);
+                    if (resolvedExt && resolvedExt.target) {
+                        console.log(`[DNS-Shield] 🛡️ Servidor externo "${instanceName}" optimizado con IP numérica: ${resolvedExt.target}`);
+                        updateServersDat(instancePath, resolvedExt.target, instanceName);
+                        return { isIpv6Ok: false, variant: 'external', target: resolvedExt.target };
+                    }
+                }
+            } catch (extErr) {
+                console.warn(`[DNS-Shield] Aviso al optimizar host externo "${extHost}":`, extErr.message || extErr);
+            }
+        }
+
+        restoreOriginalNetworkFiles(instancePath);
         return { isIpv6Ok: false, variant: 'external', target: '' };
     }
 
@@ -407,7 +440,22 @@ const applyDualStackRouting = async (instancePath, networkConfig, instanceName) 
     } else {
         selectedVariant = 'ipv4';
         if (ipv4Host) {
-            chosenTarget = `${ipv4Host}:${ipv4Port}`;
+            let resolvedV4Target = `${ipv4Host}:${ipv4Port}`;
+            try {
+                if (dnsResolver && typeof dnsResolver.resolveHostAndPort === 'function') {
+                    const resolved = await dnsResolver.resolveHostAndPort(ipv4Host, ipv4Port);
+                    if (resolved && resolved.target) {
+                        resolvedV4Target = resolved.target;
+                        if (resolved.isNumeric) {
+                            console.log(`[DNS-Shield] 🛡️ Host Playit "${ipv4Host}" resuelto a IP numérica directa contra errores DNS: ${resolvedV4Target}`);
+                        }
+                    }
+                }
+            } catch (resErr) {
+                console.warn(`[DNS-Shield] Aviso al resolver host IPv4 "${ipv4Host}":`, resErr.message || resErr);
+            }
+
+            chosenTarget = resolvedV4Target;
             console.log(`[DualStack] ⚡ Sin conectividad IPv6 directa (posible CGNAT de ISP). Enrutando vía túnel Playit.gg a: ${chosenTarget}`);
         } else {
             chosenTarget = `${ipv6Host}:${ipv6Port}`;
@@ -1113,7 +1161,7 @@ class Home {
 
         // Enrutamiento inteligente Dual Stack (IPv6 Directa vs IPv4 Playit.gg)
         try {
-            await applyDualStackRouting(localInstancePath, options.network, options.name);
+            await applyDualStackRouting(localInstancePath, options.network, options.name, options.status);
         } catch (err) {
             console.warn('[DualStack] Aviso al aplicar enrutamiento previo al lanzamiento:', err.message || err);
         }
@@ -1158,6 +1206,16 @@ class Home {
                 min: `${configClient.java_config.java_memory.min * 1024}M`,
                 max: `${configClient.java_config.java_memory.max * 1024}M`
             }
+        }
+
+        // Blindaje contra bloqueos de Firewall y memoria negativa de DNS de Java
+        if (configClient?.java_config?.java_path && dnsResolver && typeof dnsResolver.repairWindowsFirewallForJava === 'function') {
+            dnsResolver.repairWindowsFirewallForJava(configClient.java_config.java_path).catch(() => {});
+        }
+
+        const netFlags = '-Dnetworkaddress.cache.negative.ttl=0 -Dsun.net.inetaddr.negative.ttl=0';
+        if (!process.env._JAVA_OPTIONS || !process.env._JAVA_OPTIONS.includes('-Dnetworkaddress.cache.negative.ttl=0')) {
+            process.env._JAVA_OPTIONS = ((process.env._JAVA_OPTIONS || '') + ' ' + netFlags).trim();
         }
 
         launch.Launch(opt);
@@ -1230,7 +1288,7 @@ class Home {
 
             // Re-aplicar Dual Stack por si servers.dat o FancyMenu fueron sincronizados/descargados
             try {
-                await applyDualStackRouting(localInstancePath, options.network, options.name);
+                await applyDualStackRouting(localInstancePath, options.network, options.name, options.status);
             } catch (err) {
                 console.warn('[DualStack] Aviso al re-aplicar enrutamiento en evento patch:', err.message || err);
             }

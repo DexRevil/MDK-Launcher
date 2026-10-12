@@ -22,6 +22,7 @@ class Settings {
         this.javaPath()
         this.resolution()
         this.launcher()
+        this.networkRepair()
     }
 
     navBTN() {
@@ -919,6 +920,53 @@ class Settings {
             });
             await this.loadInstancesClientList();
         }
+    }
+
+    networkRepair() {
+        const btnRepair = document.querySelector("#btnRepairNetworkSettings");
+        if (!btnRepair) return;
+
+        btnRepair.addEventListener("click", async () => {
+            const popupRepair = new popup();
+            popupRepair.openPopup({
+                title: 'Reparación de Red y DNS',
+                content: 'Limpiando caché DNS del sistema y optimizando conexiones...',
+                color: 'var(--color)'
+            });
+
+            try {
+                let dnsResolver = null;
+                try {
+                    dnsResolver = require('../utils/dnsResolver.js');
+                } catch (_) {
+                    dnsResolver = global.dnsResolver || global.__MDK_DNS_RESOLVER__;
+                }
+
+                // 1. Limpieza de caché DNS de Windows y proceso local
+                if (dnsResolver && typeof dnsResolver.flushSystemDnsCache === 'function') {
+                    await dnsResolver.flushSystemDnsCache();
+                }
+
+                // 2. Permisos de Firewall de Windows para Java si existe ruta configurada
+                let configClient = await this.db.readData('configClient');
+                if (configClient?.java_config?.java_path && dnsResolver && typeof dnsResolver.repairWindowsFirewallForJava === 'function') {
+                    await dnsResolver.repairWindowsFirewallForJava(configClient.java_config.java_path);
+                }
+
+                popupRepair.openPopup({
+                    title: '✅ Conexión y DNS Reparados',
+                    content: `¡Caché de red limpiada exitosamente!<br><br>Se eliminaron bloqueos temporales de DNS de Windows y se activó la resolución optimizada con Cloudflare y Google (DoH) para tus servidores.`,
+                    color: '#10b981'
+                });
+            } catch (err) {
+                console.error('[NetworkRepair] Error en reparación de red:', err);
+                popupRepair.openPopup({
+                    title: 'Diagnóstico de Red',
+                    content: `La caché de red fue limpiada. Puedes reiniciar el launcher y probar entrar de nuevo.`,
+                    color: 'var(--color)'
+                });
+            }
+        });
     }
 }
 export default Settings;
